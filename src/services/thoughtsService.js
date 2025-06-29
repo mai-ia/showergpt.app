@@ -20,9 +20,14 @@ export async function saveThought(thought, userId = null) {
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
+        category: thought.category || null,
+        tags: thought.tags || [],
         source: thought.source || 'template',
         tokens_used: thought.tokensUsed || null,
         cost: thought.cost || null,
+        views: 0,
+        likes: 0,
+        shares: 0,
         user_id: userId,
         created_at: new Date().toISOString()
       };
@@ -38,7 +43,10 @@ export async function saveThought(thought, userId = null) {
       return {
         ...thought,
         id: data.id,
-        timestamp: new Date(data.created_at)
+        timestamp: new Date(data.created_at),
+        views: data.views,
+        likes: data.likes,
+        shares: data.shares
       };
     } else {
       // Fallback to local storage
@@ -46,7 +54,10 @@ export async function saveThought(thought, userId = null) {
       const thoughtWithId = {
         ...thought,
         id: thought.id || generateLocalId(),
-        timestamp: thought.timestamp || new Date()
+        timestamp: thought.timestamp || new Date(),
+        views: 0,
+        likes: 0,
+        shares: 0
       };
       
       localThoughts.unshift(thoughtWithId);
@@ -63,7 +74,7 @@ export async function saveThought(thought, userId = null) {
 /**
  * Get user's shower thoughts from database or local storage
  */
-export async function getUserThoughts(userId = null, limit = 50) {
+export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
   try {
     // If Supabase is configured and user is authenticated, get from database
     if (isSupabaseConfigured() && userId && supabase) {
@@ -72,7 +83,7 @@ export async function getUserThoughts(userId = null, limit = 50) {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(limit);
+        .range(offset, offset + limit - 1);
 
       if (error) throw error;
 
@@ -81,16 +92,22 @@ export async function getUserThoughts(userId = null, limit = 50) {
         content: thought.content,
         topic: thought.topic,
         mood: thought.mood,
+        category: thought.category,
+        tags: thought.tags || [],
         source: thought.source || 'template',
         tokensUsed: thought.tokens_used,
         cost: thought.cost,
+        views: thought.views || 0,
+        likes: thought.likes || 0,
+        shares: thought.shares || 0,
         timestamp: new Date(thought.created_at),
         isFavorite: false, // Will be set by favorites check
         variations: []
       }));
     } else {
       // Fallback to local storage
-      return getLocalThoughts().slice(0, limit);
+      const localThoughts = getLocalThoughts();
+      return localThoughts.slice(offset, offset + limit);
     }
   } catch (error) {
     console.error('Error getting user thoughts:', error);
@@ -139,6 +156,8 @@ export async function addToFavorites(thought, userId = null) {
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
+        category: thought.category || null,
+        tags: thought.tags || [],
         source: thought.source || 'template',
         created_at: new Date().toISOString()
       };
@@ -233,6 +252,8 @@ export async function getUserFavorites(userId = null, limit = 50) {
         content: favorite.content,
         topic: favorite.topic,
         mood: favorite.mood,
+        category: favorite.category,
+        tags: favorite.tags || [],
         source: favorite.source || 'template',
         timestamp: new Date(favorite.created_at),
         isFavorite: true,
@@ -276,6 +297,70 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
 }
 
 /**
+ * Increment thought views
+ */
+export async function incrementThoughtViews(thoughtId) {
+  try {
+    if (isSupabaseConfigured() && supabase) {
+      const { data, error } = await supabase
+        .rpc('increment_thought_views', { thought_id: thoughtId });
+
+      if (error) throw error;
+      return data || 1;
+    }
+    return 1; // Fallback for local storage
+  } catch (error) {
+    console.error('Error incrementing views:', error);
+    return 1;
+  }
+}
+
+/**
+ * Toggle thought like
+ */
+export async function toggleThoughtLike(thoughtId, userId = null) {
+  try {
+    if (isSupabaseConfigured() && userId && supabase) {
+      const { data, error } = await supabase
+        .rpc('toggle_thought_like', { 
+          thought_id: thoughtId, 
+          user_id: userId 
+        });
+
+      if (error) throw error;
+      return data || 0;
+    }
+    return 0; // Fallback for local storage
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    return 0;
+  }
+}
+
+/**
+ * Reorder favorites (for drag and drop)
+ */
+export async function reorderFavorites(userId, orderedIds) {
+  try {
+    if (isSupabaseConfigured() && userId && supabase) {
+      // Update the order in the database
+      for (let i = 0; i < orderedIds.length; i++) {
+        await supabase
+          .from('user_favorites')
+          .update({ order_index: i })
+          .eq('user_id', userId)
+          .eq('thought_id', orderedIds[i]);
+      }
+    }
+    // For local storage, the order is maintained by the array order
+    return true;
+  } catch (error) {
+    console.error('Error reordering favorites:', error);
+    throw new Error('Failed to reorder favorites. Please try again.');
+  }
+}
+
+/**
  * Get user's thought statistics
  */
 export async function getUserStats(userId = null) {
@@ -285,7 +370,7 @@ export async function getUserStats(userId = null) {
       const [thoughtsResult, favoritesResult] = await Promise.all([
         supabase
           .from('shower_thoughts')
-          .select('id, mood, source, tokens_used, cost')
+          .select('id, mood, source, tokens_used, cost, category')
           .eq('user_id', userId),
         supabase
           .from('user_favorites')
@@ -311,6 +396,11 @@ export async function getUserStats(userId = null) {
           template: thoughts.filter(t => t.source === 'template').length,
           openai: thoughts.filter(t => t.source === 'openai').length
         },
+        categoryBreakdown: thoughts.reduce((acc, t) => {
+          const category = t.category || 'uncategorized';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, {}),
         totalTokensUsed: thoughts.reduce((sum, t) => sum + (t.tokens_used || 0), 0),
         totalCost: thoughts.reduce((sum, t) => sum + (t.cost || 0), 0)
       };
@@ -333,6 +423,11 @@ export async function getUserStats(userId = null) {
           template: localThoughts.filter(t => t.source === 'template').length,
           openai: localThoughts.filter(t => t.source === 'openai').length
         },
+        categoryBreakdown: localThoughts.reduce((acc, t) => {
+          const category = t.category || 'uncategorized';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, {}),
         totalTokensUsed: localThoughts.reduce((sum, t) => sum + (t.tokensUsed || 0), 0),
         totalCost: localThoughts.reduce((sum, t) => sum + (t.cost || 0), 0)
       };
@@ -427,6 +522,9 @@ export default {
   removeFromFavorites,
   getUserFavorites,
   isThoughtFavorited,
+  incrementThoughtViews,
+  toggleThoughtLike,
+  reorderFavorites,
   getUserStats,
   syncLocalDataToDatabase
 };

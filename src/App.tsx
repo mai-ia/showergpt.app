@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3 } from 'lucide-react';
+import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
 import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
@@ -8,9 +8,12 @@ import { checkRateLimit } from './utils/rateLimit';
 import { addToHistory, getThoughtHistory, exportThoughts } from './utils/storage';
 import { env } from './config/environment';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import InputSection from './components/InputSection';
 import ThoughtsList from './components/ThoughtsList';
+import InfiniteScrollThoughts from './components/InfiniteScrollThoughts';
 import SavedThoughts from './components/SavedThoughts';
+import DragDropFavorites from './components/DragDropFavorites';
 import HistoryPanel from './components/HistoryPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import EnvironmentWarning from './components/EnvironmentWarning';
@@ -21,6 +24,7 @@ import CloudSyncIndicator from './components/CloudSyncIndicator';
 import UserStats from './components/UserStats';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ResetPasswordForm from './components/auth/ResetPasswordForm';
+import ThemeToggle from './components/ThemeToggle';
 
 function AppContent() {
   const { user, isConfigured: isAuthConfigured } = useAuth();
@@ -28,10 +32,12 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showSaved, setShowSaved] = useState(false);
+  const [showDragDropFavorites, setShowDragDropFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showUserStats, setShowUserStats] = useState(false);
+  const [showInfiniteScroll, setShowInfiniteScroll] = useState(false);
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
@@ -101,6 +107,11 @@ function AppContent() {
         // Use template generation with simulated delay
         await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
         newThought = generateShowerThought(request);
+      }
+      
+      // Add category to thought
+      if (request.category) {
+        newThought.category = request.category;
       }
       
       // Save thought to database/local storage
@@ -225,8 +236,8 @@ function AppContent() {
   // Show password reset form if this is a password reset session
   if (isPasswordReset) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-blue-200">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 max-w-md w-full border border-blue-200 dark:border-slate-700">
           <ResetPasswordForm onSuccess={handlePasswordResetSuccess} />
         </div>
       </div>
@@ -234,20 +245,20 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden transition-colors duration-300">
       {/* Decorative water drops */}
-      <div className="absolute top-10 left-10 text-blue-200 opacity-30 animate-bounce" style={{ animationDelay: '0s' }}>
+      <div className="absolute top-10 left-10 text-blue-200 dark:text-blue-800 opacity-30 animate-bounce" style={{ animationDelay: '0s' }}>
         <Droplets className="w-8 h-8" />
       </div>
-      <div className="absolute top-32 right-20 text-blue-300 opacity-40 animate-bounce" style={{ animationDelay: '1s' }}>
+      <div className="absolute top-32 right-20 text-blue-300 dark:text-blue-700 opacity-40 animate-bounce" style={{ animationDelay: '1s' }}>
         <Droplets className="w-6 h-6" />
       </div>
-      <div className="absolute top-64 left-1/4 text-blue-200 opacity-25 animate-bounce" style={{ animationDelay: '2s' }}>
+      <div className="absolute top-64 left-1/4 text-blue-200 dark:text-blue-800 opacity-25 animate-bounce" style={{ animationDelay: '2s' }}>
         <Droplets className="w-5 h-5" />
       </div>
 
       {/* Header */}
-      <header className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 shadow-xl">
+      <header className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 shadow-xl">
         <div className="absolute inset-0 bg-black opacity-10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -259,12 +270,12 @@ function AppContent() {
                 <h1 className="text-4xl sm:text-5xl font-bold text-white mb-2 tracking-tight">
                   ShowerGPT
                 </h1>
-                <p className="text-blue-100 text-lg font-medium">
+                <p className="text-blue-100 dark:text-slate-300 text-lg font-medium">
                   Whimsical thoughts for your wandering mind
                 </p>
                 <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
-                  <Waves className="w-4 h-4 text-blue-200" />
-                  <span className="text-blue-200 text-sm">
+                  <Waves className="w-4 h-4 text-blue-200 dark:text-slate-400" />
+                  <span className="text-blue-200 dark:text-slate-400 text-sm">
                     {isOpenAIConfigured() ? 'AI-powered brilliance' : 'Where brilliant ideas flow'}
                   </span>
                 </div>
@@ -272,6 +283,9 @@ function AppContent() {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+              
               {/* Cloud Sync Indicator */}
               <CloudSyncIndicator />
               
@@ -290,6 +304,17 @@ function AppContent() {
                 >
                   <Heart className="w-5 h-5" />
                   <span className="font-semibold hidden sm:inline">Favorites</span>
+                </button>
+              </ProtectedRoute>
+
+              {/* Drag & Drop Favorites */}
+              <ProtectedRoute requireAuth={true} fallback={<></>}>
+                <button
+                  onClick={() => setShowDragDropFavorites(true)}
+                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <Grip className="w-5 h-5" />
+                  <span className="font-semibold hidden sm:inline">Organize</span>
                 </button>
               </ProtectedRoute>
               
@@ -322,7 +347,7 @@ function AppContent() {
         
         {/* Wave decoration */}
         <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-8 fill-current text-blue-50">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-8 fill-current text-blue-50 dark:text-slate-800">
             <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25"></path>
             <path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5"></path>
             <path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z"></path>
@@ -344,17 +369,17 @@ function AppContent() {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="bg-white rounded-3xl shadow-2xl p-12 mb-12 border border-blue-100 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-12 mb-12 border border-blue-100 dark:border-slate-700 text-center">
             <div className="flex flex-col items-center gap-6">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Droplets className="w-6 h-6 text-blue-600 animate-pulse" />
+                  <Droplets className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-slate-800">Generating brilliant thoughts...</h3>
-                <p className="text-slate-600">Let the shower wisdom flow through you</p>
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Generating brilliant thoughts...</h3>
+                <p className="text-slate-600 dark:text-slate-400">Let the shower wisdom flow through you</p>
               </div>
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -365,6 +390,32 @@ function AppContent() {
           </div>
         )}
 
+        {/* View Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-lg border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setShowInfiniteScroll(false)}
+              className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
+                !showInfiniteScroll
+                  ? 'bg-blue-500 text-white shadow-lg'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Recent Thoughts
+            </button>
+            <button
+              onClick={() => setShowInfiniteScroll(true)}
+              className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
+                showInfiniteScroll
+                  ? 'bg-blue-500 text-white shadow-lg'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Browse All
+            </button>
+          </div>
+        </div>
+
         {/* Thoughts Section */}
         <section>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
@@ -373,18 +424,18 @@ function AppContent() {
                 <Sparkles className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-slate-800">
-                  Generated Thoughts
+                <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+                  {showInfiniteScroll ? 'All Thoughts' : 'Recent Thoughts'}
                 </h2>
-                {thoughts.length > 0 && (
-                  <p className="text-slate-600 mt-1">
+                {!showInfiniteScroll && thoughts.length > 0 && (
+                  <p className="text-slate-600 dark:text-slate-400 mt-1">
                     {thoughts.length} brilliant {thoughts.length === 1 ? 'thought' : 'thoughts'} and counting
                   </p>
                 )}
               </div>
             </div>
             
-            {thoughts.length > 0 && (
+            {!showInfiniteScroll && thoughts.length > 0 && (
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleExportAll}
@@ -404,26 +455,34 @@ function AppContent() {
             )}
           </div>
           
-          <ThoughtsList
-            thoughts={thoughts}
-            onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
-            onRegenerate={handleRegenerate}
-            onExport={handleExportSingle}
-          />
+          {showInfiniteScroll ? (
+            <InfiniteScrollThoughts
+              onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+              onRegenerate={handleRegenerate}
+              onExport={handleExportSingle}
+            />
+          ) : (
+            <ThoughtsList
+              thoughts={thoughts}
+              onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+              onRegenerate={handleRegenerate}
+              onExport={handleExportSingle}
+            />
+          )}
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="relative bg-gradient-to-r from-slate-50 to-blue-50 border-t border-blue-100 mt-20">
+      <footer className="relative bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 border-t border-blue-100 dark:border-slate-700 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <Droplets className="w-5 h-5 text-blue-500" />
-              <span className="text-slate-700 font-medium">
+              <Droplets className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              <span className="text-slate-700 dark:text-slate-300 font-medium">
                 Crafted with 💧 for moments of contemplation
               </span>
             </div>
-            <p className="text-sm text-slate-500 max-w-md mx-auto">
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
               {isOpenAIConfigured() 
                 ? 'AI-powered thoughts with rate limiting for optimal creativity and cost control.'
                 : 'Rate limited to 5 thoughts per minute for optimal shower-like pacing.'
@@ -439,6 +498,13 @@ function AppContent() {
       {showSaved && (
         <SavedThoughts
           onClose={() => setShowSaved(false)}
+          refreshTrigger={savedThoughtsRefresh}
+        />
+      )}
+
+      {showDragDropFavorites && (
+        <DragDropFavorites
+          onClose={() => setShowDragDropFavorites(false)}
           refreshTrigger={savedThoughtsRefresh}
         />
       )}
@@ -478,9 +544,11 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign } from 'lucide-react';
+import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink } from 'lucide-react';
 import { ShowerThought } from '../types';
-import { isThoughtFavorited } from '../services/thoughtsService';
+import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike } from '../services/thoughtsService';
+import { getCategoryById } from '../data/categories';
 import { useAuth } from '../contexts/AuthContext';
+import ShareableThoughtCard from './ShareableThoughtCard';
 
 interface ThoughtCardProps {
   thought: ShowerThought;
@@ -14,13 +16,23 @@ interface ThoughtCardProps {
 export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, onExport }: ThoughtCardProps) {
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(thought.isFavorite || false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [stats, setStats] = useState({
+    views: thought.views || 0,
+    likes: thought.likes || 0,
+    shares: thought.shares || 0
+  });
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
 
-  // Check if thought is favorited when component mounts
+  const category = getCategoryById(thought.category);
+
+  // Check favorite status and increment views on mount
   useEffect(() => {
     checkFavoriteStatus();
+    handleViewIncrement();
   }, [thought.id, user]);
 
   const checkFavoriteStatus = async () => {
@@ -29,6 +41,15 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
       setIsFavorite(favorited);
     } catch (error) {
       console.error('Error checking favorite status:', error);
+    }
+  };
+
+  const handleViewIncrement = async () => {
+    try {
+      const newViews = await incrementThoughtViews(thought.id);
+      setStats(prev => ({ ...prev, views: newViews }));
+    } catch (error) {
+      console.error('Error incrementing views:', error);
     }
   };
 
@@ -45,6 +66,16 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
       console.error('Error updating favorite:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLike = async () => {
+    try {
+      const newLikes = await toggleThoughtLike(thought.id, user?.id);
+      setStats(prev => ({ ...prev, likes: newLikes }));
+      setIsLiked(!isLiked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
     }
   };
 
@@ -68,6 +99,7 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
           text: shareText,
           url: window.location.href,
         });
+        setStats(prev => ({ ...prev, shares: prev.shares + 1 }));
         setShareSuccess(true);
         setTimeout(() => setShareSuccess(false), 2000);
       } catch (error) {
@@ -101,27 +133,27 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
     switch (mood) {
       case 'philosophical':
         return {
-          color: 'text-purple-700 bg-gradient-to-r from-purple-100 to-purple-200',
+          color: 'text-purple-700 bg-gradient-to-r from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 dark:text-purple-300',
           icon: '🤔',
-          gradient: 'from-purple-50 to-purple-100'
+          gradient: 'from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20'
         };
       case 'humorous':
         return {
-          color: 'text-orange-700 bg-gradient-to-r from-orange-100 to-orange-200',
+          color: 'text-orange-700 bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 dark:text-orange-300',
           icon: '😄',
-          gradient: 'from-orange-50 to-orange-100'
+          gradient: 'from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20'
         };
       case 'scientific':
         return {
-          color: 'text-green-700 bg-gradient-to-r from-green-100 to-green-200',
+          color: 'text-green-700 bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/30 dark:text-green-300',
           icon: '🔬',
-          gradient: 'from-green-50 to-green-100'
+          gradient: 'from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20'
         };
       default:
         return {
-          color: 'text-blue-700 bg-gradient-to-r from-blue-100 to-blue-200',
+          color: 'text-blue-700 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 dark:text-blue-300',
           icon: '💭',
-          gradient: 'from-blue-50 to-blue-100'
+          gradient: 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20'
         };
     }
   };
@@ -129,135 +161,205 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
   const moodConfig = getMoodConfig(thought.mood);
 
   return (
-    <div className="group bg-white rounded-3xl shadow-xl p-8 border border-blue-100 hover:shadow-2xl hover:border-blue-200 transition-all duration-500 transform hover:scale-105 animate-fade-in relative overflow-hidden">
-      {/* Decorative gradient overlay */}
-      <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${moodConfig.gradient}`}></div>
-      
-      {/* AI indicator and floating sparkle decoration */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
-        {thought.source === 'openai' && (
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            AI
+    <>
+      <div className="group bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 border border-blue-100 dark:border-slate-700 hover:shadow-2xl hover:border-blue-200 dark:hover:border-slate-600 transition-all duration-500 transform hover:scale-105 animate-fade-in relative overflow-hidden">
+        {/* Decorative gradient overlay */}
+        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${moodConfig.gradient}`}></div>
+        
+        {/* Category Badge */}
+        {category && (
+          <div className="absolute top-4 left-4">
+            <div className={`${category.color} text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1`}>
+              <span>{category.icon}</span>
+              <span>{category.name}</span>
+            </div>
           </div>
         )}
-        <div className="opacity-20 group-hover:opacity-40 transition-opacity duration-300">
-          <Sparkles className="w-6 h-6 text-blue-400" />
-        </div>
-      </div>
 
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{moodConfig.icon}</span>
-          <span className={`px-4 py-2 rounded-full text-sm font-bold ${moodConfig.color} shadow-lg`}>
-            {thought.mood}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-slate-500 text-sm bg-slate-50 px-3 py-2 rounded-full">
-          <Clock className="w-4 h-4" />
-          {formatTime(thought.timestamp)}
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <p className="text-slate-800 text-xl leading-relaxed font-medium">
-          "{thought.content}"
-        </p>
-      </div>
-
-      {thought.topic && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl border border-blue-200">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600 font-medium">Inspired by:</span>
-            <span className="text-blue-700 font-bold">{thought.topic}</span>
+        {/* AI indicator and floating sparkle decoration */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          {thought.source === 'openai' && (
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              AI
+            </div>
+          )}
+          <div className="opacity-20 group-hover:opacity-40 transition-opacity duration-300">
+            <Sparkles className="w-6 h-6 text-blue-400 dark:text-blue-300" />
           </div>
         </div>
-      )}
 
-      {thought.variations && thought.variations.length > 0 && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-2xl border border-green-200">
-          <div className="flex items-center gap-2 mb-2">
-            <RefreshCw className="w-4 h-4 text-green-600" />
-            <span className="text-sm text-green-700 font-medium">
-              {thought.variations.length} variation{thought.variations.length > 1 ? 's' : ''} generated
+        <div className="flex items-start justify-between mb-6 mt-8">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{moodConfig.icon}</span>
+            <span className={`px-4 py-2 rounded-full text-sm font-bold ${moodConfig.color} shadow-lg`}>
+              {thought.mood}
             </span>
           </div>
-        </div>
-      )}
-
-      {/* AI Usage Stats */}
-      {thought.source === 'openai' && (thought.tokensUsed || thought.cost) && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-2xl border border-purple-200">
-          <div className="flex items-center gap-4 text-sm">
-            {thought.tokensUsed && (
-              <div className="flex items-center gap-1 text-purple-700">
-                <Zap className="w-4 h-4" />
-                <span>{thought.tokensUsed} tokens</span>
-              </div>
-            )}
-            {thought.cost && (
-              <div className="flex items-center gap-1 text-purple-700">
-                <DollarSign className="w-4 h-4" />
-                <span>${thought.cost.toFixed(4)}</span>
-              </div>
-            )}
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm bg-slate-50 dark:bg-slate-700 px-3 py-2 rounded-full">
+            <Clock className="w-4 h-4" />
+            {formatTime(thought.timestamp)}
           </div>
         </div>
-      )}
 
-      <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-        <button
-          onClick={handleFavorite}
-          disabled={loading}
-          className={`flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-            isFavorite
-              ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
-              : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-red-50 hover:to-red-100 hover:text-red-600'
-          }`}
-        >
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''} ${loading ? 'animate-pulse' : ''}`} />
-          <span>{loading ? 'Saving...' : isFavorite ? 'Saved' : 'Save'}</span>
-        </button>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleRegenerate}
-            className="p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-blue-50 hover:to-blue-100 hover:text-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            title="Generate variation"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleExport}
-            className="p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-green-50 hover:to-green-100 hover:text-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            title="Export thought"
-          >
-            <Download className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleCopy}
-            className="p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-blue-50 hover:to-blue-100 hover:text-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            title="Copy to clipboard"
-          >
-            <Copy className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleShare}
-            className="p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-blue-50 hover:to-blue-100 hover:text-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            title="Share"
-          >
-            <Share2 className="w-5 h-5" />
-          </button>
+        <div className="mb-6">
+          <p className="text-slate-800 dark:text-slate-200 text-xl leading-relaxed font-medium">
+            "{thought.content}"
+          </p>
         </div>
+
+        {thought.topic && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Inspired by:</span>
+              <span className="text-blue-700 dark:text-blue-300 font-bold">{thought.topic}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Tags */}
+        {thought.tags && thought.tags.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {thought.tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Statistics */}
+        <div className="mb-6 flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1">
+            <Eye className="w-4 h-4" />
+            <span>{stats.views}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <ThumbsUp className="w-4 h-4" />
+            <span>{stats.likes}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Share2 className="w-4 h-4" />
+            <span>{stats.shares}</span>
+          </div>
+        </div>
+
+        {thought.variations && thought.variations.length > 0 && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 mb-2">
+              <RefreshCw className="w-4 h-4 text-green-600 dark:text-green-400" />
+              <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+                {thought.variations.length} variation{thought.variations.length > 1 ? 's' : ''} generated
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* AI Usage Stats */}
+        {thought.source === 'openai' && (thought.tokensUsed || thought.cost) && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl border border-purple-200 dark:border-purple-800">
+            <div className="flex items-center gap-4 text-sm">
+              {thought.tokensUsed && (
+                <div className="flex items-center gap-1 text-purple-700 dark:text-purple-300">
+                  <Zap className="w-4 h-4" />
+                  <span>{thought.tokensUsed} tokens</span>
+                </div>
+              )}
+              {thought.cost && (
+                <div className="flex items-center gap-1 text-purple-700 dark:text-purple-300">
+                  <DollarSign className="w-4 h-4" />
+                  <span>${thought.cost.toFixed(4)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleFavorite}
+              disabled={loading}
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isFavorite
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                  : 'bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-red-50 hover:to-red-100 dark:hover:from-red-900/20 dark:hover:to-red-800/20 hover:text-red-600 dark:hover:text-red-400'
+              }`}
+            >
+              <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''} ${loading ? 'animate-pulse' : ''}`} />
+              <span className="text-sm">{loading ? 'Saving...' : isFavorite ? 'Saved' : 'Save'}</span>
+            </button>
+
+            <button
+              onClick={handleLike}
+              className={`p-2 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                isLiked
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                  : 'bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
+              title="Like this thought"
+            >
+              <ThumbsUp className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRegenerate}
+              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              title="Generate variation"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleExport}
+              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-green-50 hover:to-green-100 dark:hover:from-green-900/20 dark:hover:to-green-800/20 hover:text-green-600 dark:hover:text-green-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              title="Export thought"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowShareCard(true)}
+              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-purple-50 hover:to-purple-100 dark:hover:from-purple-900/20 dark:hover:to-purple-800/20 hover:text-purple-600 dark:hover:text-purple-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              title="Create shareable card"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleCopy}
+              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              title="Copy to clipboard"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              title="Share"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {(copySuccess || shareSuccess) && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 animate-fade-in">
+            <div className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+              ✨ {copySuccess ? 'Copied to clipboard!' : 'Shared successfully!'}
+            </div>
+          </div>
+        )}
       </div>
 
-      {(copySuccess || shareSuccess) && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 animate-fade-in">
-          <div className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-            ✨ {copySuccess ? 'Copied to clipboard!' : 'Shared successfully!'}
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Shareable Card Modal */}
+      <ShareableThoughtCard
+        thought={thought}
+        isOpen={showShareCard}
+        onClose={() => setShowShareCard(false)}
+      />
+    </>
   );
 }
