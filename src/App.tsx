@@ -12,8 +12,15 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { initPerformanceMonitoring, measureComponentRender } from './utils/performance';
 import { useCache } from './hooks/useCache';
 
+// UI Components
+import { ToastProvider, useToast } from './components/ui/Toast';
+import SkipLink from './components/accessibility/SkipLink';
+
+// Enhanced Components
+import EnhancedInputSection from './components/enhanced/EnhancedInputSection';
+import EnhancedThoughtCard from './components/enhanced/EnhancedThoughtCard';
+
 // Optimized imports
-import MemoizedInputSection from './components/optimized/MemoizedInputSection';
 import ErrorBoundary from './components/ErrorBoundary';
 import EnvironmentWarning from './components/EnvironmentWarning';
 import SupabaseWarning from './components/SupabaseWarning';
@@ -21,10 +28,13 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import ThemeToggle from './components/ThemeToggle';
 import CloudSyncIndicator from './components/CloudSyncIndicator';
 import LoadingFallback, { ThoughtsListSkeleton, ModalSkeleton } from './components/LoadingFallback';
+import Button from './components/ui/Button';
+import Card from './components/ui/Card';
+import Tooltip from './components/ui/Tooltip';
+import LoadingSpinner from './components/ui/LoadingSpinner';
 
 // Lazy loaded components
 import {
-  LazyThoughtsList,
   LazyInfiniteScrollThoughts,
   LazySavedThoughts,
   LazyDragDropFavorites,
@@ -46,6 +56,7 @@ if (typeof window !== 'undefined') {
 
 function AppContent() {
   const { user, isConfigured: isAuthConfigured } = useAuth();
+  const { success, error: showError } = useToast();
   const [thoughts, setThoughts] = useState<ShowerThought[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -110,9 +121,16 @@ function AppContent() {
 
   const handleDataSync = async () => {
     try {
-      await syncLocalDataToDatabase(user?.id);
+      const result = await syncLocalDataToDatabase(user?.id);
+      if (result.thoughts > 0 || result.favorites > 0) {
+        success(
+          'Data synced successfully!',
+          `Synced ${result.thoughts} thoughts and ${result.favorites} favorites to the cloud.`
+        );
+      }
     } catch (error) {
       console.error('Error syncing data:', error);
+      showError('Sync failed', 'Unable to sync your data to the cloud.');
     }
   };
 
@@ -125,7 +143,9 @@ function AppContent() {
       if (!rateCheck.allowed) {
         const resetDate = new Date(rateCheck.resetTime!);
         const resetTime = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setError(`Rate limit exceeded. Try again after ${resetTime}.`);
+        const errorMsg = `Rate limit exceeded. Try again after ${resetTime}.`;
+        setError(errorMsg);
+        showError('Rate limit exceeded', errorMsg);
         return;
       }
     }
@@ -138,10 +158,18 @@ function AppContent() {
       if (request.useAI && isOpenAIConfigured()) {
         // Use OpenAI API
         newThought = await generateShowerThoughtWithAI(request);
+        success(
+          'AI thought generated!',
+          'Your brilliant AI-powered shower thought is ready.'
+        );
       } else {
         // Use template generation with simulated delay
         await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
         newThought = generateShowerThought(request);
+        success(
+          'Thought generated!',
+          'Your brilliant shower thought is ready.'
+        );
       }
       
       // Add category to thought
@@ -158,13 +186,16 @@ function AppContent() {
         console.error('Error saving thought:', saveError);
         // Still show the thought even if save failed
         setThoughts(prev => [newThought, ...prev]);
+        showError('Save failed', 'Thought generated but not saved to cloud.');
       }
       
       // Add to history (legacy support)
       addToHistory(newThought);
       setHistoryRefresh(prev => prev + 1);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate thought. Please try again.');
+      const errorMsg = err.message || 'Failed to generate thought. Please try again.';
+      setError(errorMsg);
+      showError('Generation failed', errorMsg);
       console.error('Generation error:', err);
     } finally {
       setIsLoading(false);
@@ -183,7 +214,9 @@ function AppContent() {
       if (!rateCheck.allowed) {
         const resetDate = new Date(rateCheck.resetTime!);
         const resetTime = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setError(`Rate limit exceeded. Try again after ${resetTime}.`);
+        const errorMsg = `Rate limit exceeded. Try again after ${resetTime}.`;
+        setError(errorMsg);
+        showError('Rate limit exceeded', errorMsg);
         return;
       }
     }
@@ -196,10 +229,18 @@ function AppContent() {
       if (useAI && isOpenAIConfigured()) {
         // Use OpenAI API for variation
         variation = await generateVariationWithAI(originalThought);
+        success(
+          'AI variation generated!',
+          'A new AI-powered variation has been created.'
+        );
       } else {
         // Use template generation with simulated delay
         await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
         variation = generateVariation(originalThought);
+        success(
+          'Variation generated!',
+          'A new variation of your thought has been created.'
+        );
       }
       
       // Save variation to database/local storage
@@ -211,13 +252,16 @@ function AppContent() {
         console.error('Error saving variation:', saveError);
         // Still show the variation even if save failed
         setThoughts(prev => [variation, ...prev]);
+        showError('Save failed', 'Variation generated but not saved to cloud.');
       }
       
       // Add to history (legacy support)
       addToHistory(variation);
       setHistoryRefresh(prev => prev + 1);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate variation. Please try again.');
+      const errorMsg = err.message || 'Failed to generate variation. Please try again.';
+      setError(errorMsg);
+      showError('Variation failed', errorMsg);
       console.error('Regeneration error:', err);
     } finally {
       setIsLoading(false);
@@ -235,24 +279,30 @@ function AppContent() {
       refreshThoughts(); // Refresh cache
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      setError('Failed to update favorite. Please try again.');
+      showError('Favorite failed', 'Unable to update favorite status.');
     }
   };
 
   const handleClearAll = () => {
     setThoughts([]);
     refreshThoughts(); // Refresh cache
+    success('Thoughts cleared!', 'All thoughts have been removed from view.');
   };
 
   const handleExportAll = () => {
     try {
       if (thoughts.length === 0) {
-        setError('No thoughts to export. Generate some thoughts first!');
+        const errorMsg = 'No thoughts to export. Generate some thoughts first!';
+        setError(errorMsg);
+        showError('Export failed', errorMsg);
         return;
       }
       exportThoughts(thoughts, 'all-shower-thoughts');
+      success('Export successful!', `${thoughts.length} thoughts have been exported.`);
     } catch (err) {
-      setError('Failed to export thoughts. Please try again.');
+      const errorMsg = 'Failed to export thoughts. Please try again.';
+      setError(errorMsg);
+      showError('Export failed', errorMsg);
       console.error('Export error:', err);
     }
   };
@@ -261,7 +311,7 @@ function AppContent() {
     try {
       exportThoughts([thought], `shower-thought-${thought.id}`);
     } catch (err) {
-      setError('Failed to export thought. Please try again.');
+      showError('Export failed', 'Unable to export thought.');
       console.error('Export error:', err);
     }
   };
@@ -270,31 +320,34 @@ function AppContent() {
     setIsPasswordReset(false);
     // Clear the hash from URL
     window.history.replaceState(null, '', window.location.pathname);
+    success('Password updated!', 'Your password has been successfully updated.');
   };
 
   // Show password reset form if this is a password reset session
   if (isPasswordReset) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 max-w-md w-full border border-blue-200 dark:border-slate-700">
+        <Card variant="elevated" className="max-w-md w-full">
           <Suspense fallback={<LoadingFallback message="Loading password reset..." />}>
             <LazyResetPasswordForm onSuccess={handlePasswordResetSuccess} />
           </Suspense>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden transition-colors duration-300">
+      <SkipLink />
+      
       {/* Decorative water drops */}
-      <div className="absolute top-10 left-10 text-blue-200 dark:text-blue-800 opacity-30 animate-bounce" style={{ animationDelay: '0s' }}>
+      <div className="absolute top-10 left-10 text-blue-200 dark:text-blue-800 opacity-30 animate-float" style={{ animationDelay: '0s' }}>
         <Droplets className="w-8 h-8" />
       </div>
-      <div className="absolute top-32 right-20 text-blue-300 dark:text-blue-700 opacity-40 animate-bounce" style={{ animationDelay: '1s' }}>
+      <div className="absolute top-32 right-20 text-blue-300 dark:text-blue-700 opacity-40 animate-float" style={{ animationDelay: '1s' }}>
         <Droplets className="w-6 h-6" />
       </div>
-      <div className="absolute top-64 left-1/4 text-blue-200 dark:text-blue-800 opacity-25 animate-bounce" style={{ animationDelay: '2s' }}>
+      <div className="absolute top-64 left-1/4 text-blue-200 dark:text-blue-800 opacity-25 animate-float" style={{ animationDelay: '2s' }}>
         <Droplets className="w-5 h-5" />
       </div>
 
@@ -304,8 +357,8 @@ function AppContent() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="bg-white bg-opacity-20 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
-                <span className="text-4xl">🚿</span>
+              <div className="bg-white bg-opacity-20 backdrop-blur-sm p-4 rounded-2xl shadow-lg animate-glow">
+                <span className="text-4xl" role="img" aria-label="Shower emoji">🚿</span>
               </div>
               <div>
                 <h1 className="text-4xl sm:text-5xl font-bold text-white mb-2 tracking-tight">
@@ -335,77 +388,101 @@ function AppContent() {
               {/* Cloud Sync Indicator */}
               <CloudSyncIndicator />
               
-              <button
-                onClick={() => setShowLiveFeed(!showLiveFeed)}
-                className={`flex items-center gap-3 px-6 py-3 backdrop-blur-sm text-white rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                  showLiveFeed ? 'bg-green-500 bg-opacity-80' : 'bg-white bg-opacity-20 hover:bg-opacity-30'
-                }`}
-              >
-                <Zap className="w-5 h-5" />
-                <span className="font-semibold hidden sm:inline">Live Feed</span>
-              </button>
+              <Tooltip content="View live thoughts from all users">
+                <Button
+                  onClick={() => setShowLiveFeed(!showLiveFeed)}
+                  variant={showLiveFeed ? 'primary' : 'ghost'}
+                  size="md"
+                  leftIcon={<Zap className="w-5 h-5" />}
+                  className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                >
+                  <span className="hidden sm:inline">Live Feed</span>
+                </Button>
+              </Tooltip>
               
-              <button
-                onClick={() => setShowCollaboration(!showCollaboration)}
-                className={`flex items-center gap-3 px-6 py-3 backdrop-blur-sm text-white rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${
-                  showCollaboration ? 'bg-purple-500 bg-opacity-80' : 'bg-white bg-opacity-20 hover:bg-opacity-30'
-                }`}
-              >
-                <Users className="w-5 h-5" />
-                <span className="font-semibold hidden sm:inline">Collaborate</span>
-              </button>
+              <Tooltip content="Join collaborative thinking sessions">
+                <Button
+                  onClick={() => setShowCollaboration(!showCollaboration)}
+                  variant={showCollaboration ? 'primary' : 'ghost'}
+                  size="md"
+                  leftIcon={<Users className="w-5 h-5" />}
+                  className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                >
+                  <span className="hidden sm:inline">Collaborate</span>
+                </Button>
+              </Tooltip>
               
-              <button
-                onClick={() => setShowHistory(true)}
-                className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <History className="w-5 h-5" />
-                <span className="font-semibold hidden sm:inline">History</span>
-              </button>
+              <Tooltip content="View your thought history">
+                <Button
+                  onClick={() => setShowHistory(true)}
+                  variant="ghost"
+                  size="md"
+                  leftIcon={<History className="w-5 h-5" />}
+                  className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                >
+                  <span className="hidden sm:inline">History</span>
+                </Button>
+              </Tooltip>
               
               <ProtectedRoute requireAuth={false}>
-                <button
-                  onClick={() => setShowSaved(true)}
-                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <Heart className="w-5 h-5" />
-                  <span className="font-semibold hidden sm:inline">Favorites</span>
-                </button>
+                <Tooltip content="View your favorite thoughts">
+                  <Button
+                    onClick={() => setShowSaved(true)}
+                    variant="ghost"
+                    size="md"
+                    leftIcon={<Heart className="w-5 h-5" />}
+                    className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                  >
+                    <span className="hidden sm:inline">Favorites</span>
+                  </Button>
+                </Tooltip>
               </ProtectedRoute>
 
               {/* Drag & Drop Favorites */}
               <ProtectedRoute requireAuth={true} fallback={<></>}>
-                <button
-                  onClick={() => setShowDragDropFavorites(true)}
-                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <Grip className="w-5 h-5" />
-                  <span className="font-semibold hidden sm:inline">Organize</span>
-                </button>
+                <Tooltip content="Organize your favorite thoughts">
+                  <Button
+                    onClick={() => setShowDragDropFavorites(true)}
+                    variant="ghost"
+                    size="md"
+                    leftIcon={<Grip className="w-5 h-5" />}
+                    className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                  >
+                    <span className="hidden sm:inline">Organize</span>
+                  </Button>
+                </Tooltip>
               </ProtectedRoute>
               
               {/* Stats Button (only for authenticated users) */}
               <ProtectedRoute requireAuth={true} fallback={<></>}>
-                <button
-                  onClick={() => setShowUserStats(true)}
-                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  <span className="font-semibold hidden sm:inline">Stats</span>
-                </button>
+                <Tooltip content="View your thinking statistics">
+                  <Button
+                    onClick={() => setShowUserStats(true)}
+                    variant="ghost"
+                    size="md"
+                    leftIcon={<BarChart3 className="w-5 h-5" />}
+                    className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                  >
+                    <span className="hidden sm:inline">Stats</span>
+                  </Button>
+                </Tooltip>
               </ProtectedRoute>
               
               {/* Auth Button */}
               {isAuthConfigured && (
-                <button
-                  onClick={() => user ? setShowUserProfile(true) : setShowAuthModal(true)}
-                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  {user ? <User className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
-                  <span className="font-semibold hidden sm:inline">
-                    {user ? 'Profile' : 'Sign In'}
-                  </span>
-                </button>
+                <Tooltip content={user ? 'View your profile' : 'Sign in to save thoughts'}>
+                  <Button
+                    onClick={() => user ? setShowUserProfile(true) : setShowAuthModal(true)}
+                    variant="ghost"
+                    size="md"
+                    leftIcon={user ? <User className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
+                    className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                  >
+                    <span className="hidden sm:inline">
+                      {user ? 'Profile' : 'Sign In'}
+                    </span>
+                  </Button>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -422,7 +499,7 @@ function AppContent() {
       </header>
 
       {/* Main Content */}
-      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main id="main-content" className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Main Content Area */}
           <div className="lg:col-span-3 space-y-8">
@@ -452,7 +529,7 @@ function AppContent() {
               </div>
             )}
 
-            <MemoizedInputSection
+            <EnhancedInputSection
               onGenerate={handleGenerate}
               isLoading={isLoading}
               error={error}
@@ -460,17 +537,16 @@ function AppContent() {
 
             {/* Loading State */}
             {isLoading && (
-              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-12 mb-12 border border-blue-100 dark:border-slate-700 text-center">
-                <div className="flex flex-col items-center gap-6">
-                  <div className="relative">
-                    <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Droplets className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
-                    </div>
-                  </div>
+              <Card variant="elevated" className="text-center">
+                <div className="flex flex-col items-center gap-6 py-8">
+                  <LoadingSpinner variant="shower" size="xl" />
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Generating brilliant thoughts...</h3>
-                    <p className="text-slate-600 dark:text-slate-400">Let the shower wisdom flow through you</p>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                      Generating brilliant thoughts...
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Let the shower wisdom flow through you
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -478,33 +554,31 @@ function AppContent() {
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                   </div>
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* View Toggle */}
             <div className="flex justify-center mb-8">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-lg border border-slate-200 dark:border-slate-700">
-                <button
-                  onClick={() => setShowInfiniteScroll(false)}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                    !showInfiniteScroll
-                      ? 'bg-blue-500 text-white shadow-lg'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Recent Thoughts
-                </button>
-                <button
-                  onClick={() => setShowInfiniteScroll(true)}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                    showInfiniteScroll
-                      ? 'bg-blue-500 text-white shadow-lg'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Browse All
-                </button>
-              </div>
+              <Card variant="glass" padding="sm">
+                <div className="flex">
+                  <Button
+                    onClick={() => setShowInfiniteScroll(false)}
+                    variant={!showInfiniteScroll ? 'primary' : 'ghost'}
+                    size="md"
+                    className="rounded-r-none"
+                  >
+                    Recent Thoughts
+                  </Button>
+                  <Button
+                    onClick={() => setShowInfiniteScroll(true)}
+                    variant={showInfiniteScroll ? 'primary' : 'ghost'}
+                    size="md"
+                    className="rounded-l-none"
+                  >
+                    Browse All
+                  </Button>
+                </div>
+              </Card>
             </div>
 
             {/* Thoughts Section */}
@@ -528,20 +602,27 @@ function AppContent() {
                 
                 {!showInfiniteScroll && thoughts.length > 0 && (
                   <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleExportAll}
-                      className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
-                    >
-                      <Download className="w-5 h-5" />
-                      <span className="hidden sm:inline">Export All</span>
-                    </button>
-                    <button
-                      onClick={handleClearAll}
-                      className="flex items-center gap-2 px-5 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                      <span className="hidden sm:inline">Clear All</span>
-                    </button>
+                    <Tooltip content="Export all thoughts as a text file">
+                      <Button
+                        onClick={handleExportAll}
+                        variant="secondary"
+                        size="md"
+                        leftIcon={<Download className="w-5 h-5" />}
+                        className="bg-green-500 hover:bg-green-600 text-white border-green-500"
+                      >
+                        <span className="hidden sm:inline">Export All</span>
+                      </Button>
+                    </Tooltip>
+                    <Tooltip content="Clear all thoughts from view">
+                      <Button
+                        onClick={handleClearAll}
+                        variant="danger"
+                        size="md"
+                        leftIcon={<Trash2 className="w-5 h-5" />}
+                      >
+                        <span className="hidden sm:inline">Clear All</span>
+                      </Button>
+                    </Tooltip>
                   </div>
                 )}
               </div>
@@ -554,12 +635,36 @@ function AppContent() {
                     onExport={handleExportSingle}
                   />
                 ) : (
-                  <LazyThoughtsList
-                    thoughts={thoughts}
-                    onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
-                    onRegenerate={handleRegenerate}
-                    onExport={handleExportSingle}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                    {thoughts.length === 0 ? (
+                      <div className="col-span-full text-center py-20">
+                        <Card variant="elevated" className="max-w-md mx-auto">
+                          <div className="mb-6">
+                            <div className="bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 p-6 rounded-full w-24 h-24 mx-auto flex items-center justify-center">
+                              <Droplets className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+                            </div>
+                          </div>
+                          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-3">
+                            No thoughts yet
+                          </h3>
+                          <p className="text-slate-600 dark:text-slate-400 text-lg">
+                            Generate your first shower thought above and let the wisdom flow! 🚿
+                          </p>
+                        </Card>
+                      </div>
+                    ) : (
+                      thoughts.map((thought, index) => (
+                        <EnhancedThoughtCard
+                          key={thought.id}
+                          thought={thought}
+                          onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                          onRegenerate={handleRegenerate}
+                          onExport={handleExportSingle}
+                          index={index}
+                        />
+                      ))
+                    )}
+                  </div>
                 )}
               </Suspense>
             </section>
@@ -660,7 +765,9 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <AppContent />
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
