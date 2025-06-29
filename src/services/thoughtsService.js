@@ -551,21 +551,39 @@ export async function syncLocalDataToDatabase(userId) {
     let syncedThoughts = 0;
     let syncedFavorites = 0;
 
-    // Sync thoughts
+    // Create a mapping from local IDs to database UUIDs
+    const idMapping = new Map();
+
+    // Sync thoughts first and build ID mapping
     for (const thought of localThoughts) {
       try {
-        await saveThought(thought, userId);
+        const savedThought = await saveThought(thought, userId);
+        // Map the local ID to the new database UUID
+        idMapping.set(thought.id, savedThought.id);
         syncedThoughts++;
       } catch (error) {
         console.warn('Failed to sync thought:', error);
       }
     }
 
-    // Sync favorites
+    // Sync favorites using the ID mapping
     for (const favorite of localFavorites) {
       try {
-        await addToFavorites(favorite, userId);
-        syncedFavorites++;
+        // Get the database UUID for this thought
+        const databaseId = idMapping.get(favorite.id);
+        
+        if (databaseId) {
+          // Create a new favorite object with the correct database ID
+          const favoriteWithDbId = {
+            ...favorite,
+            id: databaseId
+          };
+          
+          await addToFavorites(favoriteWithDbId, userId);
+          syncedFavorites++;
+        } else {
+          console.warn('Could not find database ID for favorite:', favorite.id);
+        }
       } catch (error) {
         console.warn('Failed to sync favorite:', error);
       }
