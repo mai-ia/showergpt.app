@@ -20,9 +20,14 @@ export async function saveThought(thought, userId = null) {
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
+        category: thought.category || null,
+        tags: thought.tags || [],
         source: thought.source || 'template',
         tokens_used: thought.tokensUsed || null,
         cost: thought.cost || null,
+        views_count: 0,
+        likes_count: 0,
+        shares_count: 0,
         user_id: userId,
         created_at: new Date().toISOString()
       };
@@ -39,9 +44,9 @@ export async function saveThought(thought, userId = null) {
         ...thought,
         id: data.id,
         timestamp: new Date(data.created_at),
-        views: 0,
-        likes: 0,
-        shares: 0
+        views: data.views_count || 0,
+        likes: data.likes_count || 0,
+        shares: data.shares_count || 0
       };
     } else {
       // Fallback to local storage
@@ -87,12 +92,14 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
         content: thought.content,
         topic: thought.topic,
         mood: thought.mood,
+        category: thought.category,
+        tags: thought.tags || [],
         source: thought.source || 'template',
         tokensUsed: thought.tokens_used,
         cost: thought.cost,
-        views: 0, // shower_thoughts table doesn't have views
-        likes: 0, // shower_thoughts table doesn't have likes
-        shares: 0, // shower_thoughts table doesn't have shares
+        views: thought.views_count || 0,
+        likes: thought.likes_count || 0,
+        shares: thought.shares_count || 0,
         timestamp: new Date(thought.created_at),
         isFavorite: false, // Will be set by favorites check
         variations: []
@@ -287,14 +294,17 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
 
 /**
  * Increment thought views
- * Note: Since shower_thoughts table doesn't have view tracking, this is a no-op for database
  */
 export async function incrementThoughtViews(thoughtId) {
   try {
-    // For shower_thoughts table, we don't track views in the database
-    // This function exists for compatibility but doesn't perform database operations
-    console.log('View tracking not implemented for shower_thoughts table');
-    return 1; // Return 1 to indicate the view was "counted"
+    if (isSupabaseConfigured() && supabase) {
+      const { data, error } = await supabase
+        .rpc('increment_thought_views', { thought_id: thoughtId });
+
+      if (error) throw error;
+      return data || 1;
+    }
+    return 1; // Fallback for local storage
   } catch (error) {
     console.error('Error incrementing views:', error);
     return 1;
@@ -303,17 +313,42 @@ export async function incrementThoughtViews(thoughtId) {
 
 /**
  * Toggle thought like
- * Note: Since shower_thoughts table doesn't have like tracking, this is a no-op for database
  */
 export async function toggleThoughtLike(thoughtId, userId = null) {
   try {
-    // For shower_thoughts table, we don't track likes in the database
-    // This function exists for compatibility but doesn't perform database operations
-    console.log('Like tracking not implemented for shower_thoughts table');
-    return 0; // Return 0 to indicate no likes
+    if (isSupabaseConfigured() && userId && supabase) {
+      const { data, error } = await supabase
+        .rpc('toggle_thought_like', { 
+          thought_id: thoughtId, 
+          user_id: userId 
+        });
+
+      if (error) throw error;
+      return data || 0;
+    }
+    return 0; // Fallback for local storage
   } catch (error) {
     console.error('Error toggling like:', error);
     return 0;
+  }
+}
+
+/**
+ * Increment thought shares
+ */
+export async function incrementThoughtShares(thoughtId) {
+  try {
+    if (isSupabaseConfigured() && supabase) {
+      const { data, error } = await supabase
+        .rpc('increment_thought_shares', { thought_id: thoughtId });
+
+      if (error) throw error;
+      return data || 1;
+    }
+    return 1; // Fallback for local storage
+  } catch (error) {
+    console.error('Error incrementing shares:', error);
+    return 1;
   }
 }
 
@@ -350,7 +385,7 @@ export async function getUserStats(userId = null) {
       const [thoughtsResult, favoritesResult] = await Promise.all([
         supabase
           .from('shower_thoughts')
-          .select('id, mood, source, tokens_used, cost')
+          .select('id, mood, source, tokens_used, cost, category')
           .eq('user_id', userId),
         supabase
           .from('user_favorites')
@@ -376,6 +411,11 @@ export async function getUserStats(userId = null) {
           template: thoughts.filter(t => t.source === 'template').length,
           openai: thoughts.filter(t => t.source === 'openai').length
         },
+        categoryBreakdown: thoughts.reduce((acc, t) => {
+          const category = t.category || 'uncategorized';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, {}),
         totalTokensUsed: thoughts.reduce((sum, t) => sum + (t.tokens_used || 0), 0),
         totalCost: thoughts.reduce((sum, t) => sum + (t.cost || 0), 0)
       };
@@ -398,6 +438,11 @@ export async function getUserStats(userId = null) {
           template: localThoughts.filter(t => t.source === 'template').length,
           openai: localThoughts.filter(t => t.source === 'openai').length
         },
+        categoryBreakdown: localThoughts.reduce((acc, t) => {
+          const category = t.category || 'uncategorized';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, {}),
         totalTokensUsed: localThoughts.reduce((sum, t) => sum + (t.tokensUsed || 0), 0),
         totalCost: localThoughts.reduce((sum, t) => sum + (t.cost || 0), 0)
       };
@@ -494,6 +539,7 @@ export default {
   isThoughtFavorited,
   incrementThoughtViews,
   toggleThoughtLike,
+  incrementThoughtShares,
   reorderFavorites,
   getUserStats,
   syncLocalDataToDatabase

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink, MessageCircle } from 'lucide-react';
 import { ShowerThought } from '../types';
-import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike } from '../services/thoughtsService';
+import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike, incrementThoughtShares } from '../services/thoughtsService';
 import { getCategoryById } from '../data/categories';
 import { useAuth } from '../contexts/AuthContext';
 import ShareableThoughtCard from './ShareableThoughtCard';
@@ -102,7 +102,10 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
           text: shareText,
           url: window.location.href,
         });
-        setStats(prev => ({ ...prev, shares: prev.shares + 1 }));
+        
+        // Increment shares count
+        const newShares = await incrementThoughtShares(thought.id);
+        setStats(prev => ({ ...prev, shares: newShares }));
         setShareSuccess(true);
         setTimeout(() => setShareSuccess(false), 2000);
       } catch (error) {
