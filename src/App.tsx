@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip, Zap, Users } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
@@ -9,26 +9,40 @@ import { addToHistory, getThoughtHistory, exportThoughts } from './utils/storage
 import { env } from './config/environment';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import InputSection from './components/InputSection';
-import ThoughtsList from './components/ThoughtsList';
-import InfiniteScrollThoughts from './components/InfiniteScrollThoughts';
-import SavedThoughts from './components/SavedThoughts';
-import DragDropFavorites from './components/DragDropFavorites';
-import HistoryPanel from './components/HistoryPanel';
+import { initPerformanceMonitoring, measureComponentRender } from './utils/performance';
+import { useCache } from './hooks/useCache';
+
+// Optimized imports
+import MemoizedInputSection from './components/optimized/MemoizedInputSection';
 import ErrorBoundary from './components/ErrorBoundary';
 import EnvironmentWarning from './components/EnvironmentWarning';
 import SupabaseWarning from './components/SupabaseWarning';
-import AuthModal from './components/auth/AuthModal';
-import UserProfile from './components/auth/UserProfile';
-import CloudSyncIndicator from './components/CloudSyncIndicator';
-import UserStats from './components/UserStats';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import ResetPasswordForm from './components/auth/ResetPasswordForm';
 import ThemeToggle from './components/ThemeToggle';
-import LiveThoughtsFeed from './components/realtime/LiveThoughtsFeed';
-import OnlineUsers from './components/realtime/OnlineUsers';
-import LiveNotifications from './components/realtime/LiveNotifications';
-import LiveCollaboration from './components/realtime/LiveCollaboration';
+import CloudSyncIndicator from './components/CloudSyncIndicator';
+import LoadingFallback, { ThoughtsListSkeleton, ModalSkeleton } from './components/LoadingFallback';
+
+// Lazy loaded components
+import {
+  LazyThoughtsList,
+  LazyInfiniteScrollThoughts,
+  LazySavedThoughts,
+  LazyDragDropFavorites,
+  LazyHistoryPanel,
+  LazyAuthModal,
+  LazyUserProfile,
+  LazyUserStats,
+  LazyResetPasswordForm,
+  LazyLiveThoughtsFeed,
+  LazyOnlineUsers,
+  LazyLiveNotifications,
+  LazyLiveCollaboration
+} from './components/LazyComponents';
+
+// Initialize performance monitoring
+if (typeof window !== 'undefined') {
+  initPerformanceMonitoring();
+}
 
 function AppContent() {
   const { user, isConfigured: isAuthConfigured } = useAuth();
@@ -48,6 +62,13 @@ function AppContent() {
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
 
+  // Cached user thoughts
+  const { data: cachedThoughts, refresh: refreshThoughts } = useCache(
+    `user-thoughts-${user?.id || 'anonymous'}`,
+    () => getUserThoughts(user?.id, 10),
+    { ttl: 2 * 60 * 1000 } // 2 minutes cache
+  );
+
   // Check if this is a password reset page
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -65,15 +86,23 @@ function AppContent() {
   // Load user's thoughts when they sign in
   useEffect(() => {
     if (user) {
-      loadUserThoughts();
-      handleDataSync();
+      measureComponentRender('load-user-thoughts', () => {
+        loadUserThoughts();
+        handleDataSync();
+      });
     }
   }, [user]);
 
+  // Update thoughts from cache
+  useEffect(() => {
+    if (cachedThoughts) {
+      setThoughts(cachedThoughts);
+    }
+  }, [cachedThoughts]);
+
   const loadUserThoughts = async () => {
     try {
-      const userThoughts = await getUserThoughts(user?.id, 10); // Load recent thoughts
-      setThoughts(userThoughts);
+      await refreshThoughts();
     } catch (error) {
       console.error('Error loading user thoughts:', error);
     }
@@ -124,6 +153,7 @@ function AppContent() {
       try {
         const savedThought = await saveThought(newThought, user?.id);
         setThoughts(prev => [savedThought, ...prev]);
+        refreshThoughts(); // Refresh cache
       } catch (saveError) {
         console.error('Error saving thought:', saveError);
         // Still show the thought even if save failed
@@ -176,6 +206,7 @@ function AppContent() {
       try {
         const savedVariation = await saveThought(variation, user?.id);
         setThoughts(prev => [savedVariation, ...prev]);
+        refreshThoughts(); // Refresh cache
       } catch (saveError) {
         console.error('Error saving variation:', saveError);
         // Still show the variation even if save failed
@@ -201,6 +232,7 @@ function AppContent() {
         await removeFromFavorites(thought.id, user?.id);
       }
       setSavedThoughtsRefresh(prev => prev + 1);
+      refreshThoughts(); // Refresh cache
     } catch (error) {
       console.error('Error toggling favorite:', error);
       setError('Failed to update favorite. Please try again.');
@@ -209,6 +241,7 @@ function AppContent() {
 
   const handleClearAll = () => {
     setThoughts([]);
+    refreshThoughts(); // Refresh cache
   };
 
   const handleExportAll = () => {
@@ -244,7 +277,9 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 max-w-md w-full border border-blue-200 dark:border-slate-700">
-          <ResetPasswordForm onSuccess={handlePasswordResetSuccess} />
+          <Suspense fallback={<LoadingFallback message="Loading password reset..." />}>
+            <LazyResetPasswordForm onSuccess={handlePasswordResetSuccess} />
+          </Suspense>
         </div>
       </div>
     );
@@ -293,7 +328,9 @@ function AppContent() {
               <ThemeToggle />
               
               {/* Live Notifications */}
-              <LiveNotifications />
+              <Suspense fallback={<div className="w-12 h-12 bg-white bg-opacity-20 rounded-2xl animate-pulse"></div>}>
+                <LazyLiveNotifications />
+              </Suspense>
               
               {/* Cloud Sync Indicator */}
               <CloudSyncIndicator />
@@ -396,22 +433,26 @@ function AppContent() {
             {/* Live Features */}
             {showLiveFeed && (
               <div className="mb-8">
-                <LiveThoughtsFeed onThoughtUpdate={(thought) => {
-                  // Update local thoughts if needed
-                  setThoughts(prev => 
-                    prev.map(t => t.id === thought.id ? thought : t)
-                  );
-                }} />
+                <Suspense fallback={<LoadingFallback message="Loading live feed..." />}>
+                  <LazyLiveThoughtsFeed onThoughtUpdate={(thought) => {
+                    // Update local thoughts if needed
+                    setThoughts(prev => 
+                      prev.map(t => t.id === thought.id ? thought : t)
+                    );
+                  }} />
+                </Suspense>
               </div>
             )}
 
             {showCollaboration && (
               <div className="mb-8">
-                <LiveCollaboration />
+                <Suspense fallback={<LoadingFallback message="Loading collaboration..." />}>
+                  <LazyLiveCollaboration />
+                </Suspense>
               </div>
             )}
 
-            <InputSection
+            <MemoizedInputSection
               onGenerate={handleGenerate}
               isLoading={isLoading}
               error={error}
@@ -505,26 +546,30 @@ function AppContent() {
                 )}
               </div>
               
-              {showInfiniteScroll ? (
-                <InfiniteScrollThoughts
-                  onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
-                  onRegenerate={handleRegenerate}
-                  onExport={handleExportSingle}
-                />
-              ) : (
-                <ThoughtsList
-                  thoughts={thoughts}
-                  onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
-                  onRegenerate={handleRegenerate}
-                  onExport={handleExportSingle}
-                />
-              )}
+              <Suspense fallback={<ThoughtsListSkeleton />}>
+                {showInfiniteScroll ? (
+                  <LazyInfiniteScrollThoughts
+                    onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                    onRegenerate={handleRegenerate}
+                    onExport={handleExportSingle}
+                  />
+                ) : (
+                  <LazyThoughtsList
+                    thoughts={thoughts}
+                    onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                    onRegenerate={handleRegenerate}
+                    onExport={handleExportSingle}
+                  />
+                )}
+              </Suspense>
             </section>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
-            <OnlineUsers />
+            <Suspense fallback={<LoadingFallback size="sm" message="Loading online users..." />}>
+              <LazyOnlineUsers />
+            </Suspense>
           </div>
         </div>
       </main>
@@ -553,46 +598,58 @@ function AppContent() {
 
       {/* Modals */}
       {showSaved && (
-        <SavedThoughts
-          onClose={() => setShowSaved(false)}
-          refreshTrigger={savedThoughtsRefresh}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <LazySavedThoughts
+            onClose={() => setShowSaved(false)}
+            refreshTrigger={savedThoughtsRefresh}
+          />
+        </Suspense>
       )}
 
       {showDragDropFavorites && (
-        <DragDropFavorites
-          onClose={() => setShowDragDropFavorites(false)}
-          refreshTrigger={savedThoughtsRefresh}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <LazyDragDropFavorites
+            onClose={() => setShowDragDropFavorites(false)}
+            refreshTrigger={savedThoughtsRefresh}
+          />
+        </Suspense>
       )}
 
       {showHistory && (
-        <HistoryPanel
-          onClose={() => setShowHistory(false)}
-          onRegenerate={handleRegenerate}
-          refreshTrigger={historyRefresh}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <LazyHistoryPanel
+            onClose={() => setShowHistory(false)}
+            onRegenerate={handleRegenerate}
+            refreshTrigger={historyRefresh}
+          />
+        </Suspense>
       )}
 
       {showAuthModal && (
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <LazyAuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+          />
+        </Suspense>
       )}
 
       {showUserProfile && (
-        <UserProfile
-          isOpen={showUserProfile}
-          onClose={() => setShowUserProfile(false)}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <LazyUserProfile
+            isOpen={showUserProfile}
+            onClose={() => setShowUserProfile(false)}
+          />
+        </Suspense>
       )}
 
       {showUserStats && (
-        <UserStats
-          isOpen={showUserStats}
-          onClose={() => setShowUserStats(false)}
-        />
+        <Suspense fallback={<ModalSkeleton />}>
+          <LazyUserStats
+            isOpen={showUserStats}
+            onClose={() => setShowUserStats(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

@@ -14,6 +14,26 @@
   .animate-bounce-gentle {
     animation: bounceGentle 2s infinite;
   }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thumb-blue-500 {
+    scrollbar-color: #3b82f6 transparent;
+  }
+
+  .scrollbar-track-blue-100 {
+    scrollbar-color: #3b82f6 #dbeafe;
+  }
+
+  .dark .scrollbar-track-slate-700 {
+    scrollbar-color: #3b82f6 #374151;
+  }
 }
 
 @keyframes fadeIn {
@@ -50,31 +70,51 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
 /* Enhanced scrollbar styling */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: linear-gradient(to bottom, #f1f5f9, #e2e8f0);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(to bottom, #3b82f6, #2563eb);
-  border-radius: 6px;
-  border: 2px solid #f1f5f9;
+  border-radius: 4px;
+  border: 1px solid #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #2563eb, #1d4ed8);
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: linear-gradient(to bottom, #374151, #4b5563);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #3b82f6, #2563eb);
+  border: 1px solid #374151;
+}
+
 /* Enhanced focus styles for accessibility */
 button:focus,
 input:focus,
-textarea:focus {
-  outline: 3px solid #3b82f6;
+textarea:focus,
+select:focus {
+  outline: 2px solid #3b82f6;
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
@@ -83,6 +123,7 @@ textarea:focus {
 * {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform, filter;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 /* Custom gradient text */
@@ -133,6 +174,21 @@ textarea:focus {
   animation: pulse-gentle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
 /* Mobile-first responsive improvements */
 @media (max-width: 640px) {
   .mobile-padding {
@@ -142,6 +198,12 @@ textarea:focus {
   
   .mobile-text-center {
     text-align: center;
+  }
+
+  /* Optimize for touch */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
@@ -170,4 +232,50 @@ textarea:focus {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  .animate-spin {
+    animation: none;
+  }
+
+  .animate-bounce {
+    animation: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .bg-gradient-to-r {
+    background: white !important;
+  }
+}
+
+/* Content visibility for performance */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 300px;
+}
+
+/* Image optimization */
+img {
+  content-visibility: auto;
+  contain-intrinsic-size: 300px 200px;
+}
+
+/* Virtual scrolling optimizations */
+.virtual-list-container {
+  contain: layout style paint;
+}
+
+.virtual-list-item {
+  contain: layout style paint;
+  will-change: transform;
 }
