@@ -10,7 +10,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
   updateProfile: (updates: any) => Promise<any>;
+  updatePassword: (newPassword: string) => Promise<any>;
   resetPassword: (email: string) => Promise<any>;
+  deleteAccount: () => Promise<void>;
   userProfile: any;
   refreshProfile: () => Promise<void>;
   isConfigured: boolean;
@@ -165,11 +167,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updatePassword = async (newPassword: string) => {
+    try {
+      return await authHelpers.updatePassword(newPassword);
+    } catch (error) {
+      console.error('Update password error:', error);
+      throw error;
+    }
+  };
+
   const resetPassword = async (email: string) => {
     try {
       return await authHelpers.resetPassword(email);
     } catch (error) {
       console.error('Reset password error:', error);
+      throw error;
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      if (!user) throw new Error('No user logged in');
+      
+      // Delete user account (this will cascade delete all related data due to foreign key constraints)
+      await authHelpers.deleteAccount();
+      
+      // Clear local state
+      setUser(null);
+      setSession(null);
+      setUserProfile(null);
+    } catch (error) {
+      console.error('Delete account error:', error);
       throw error;
     }
   };
@@ -182,7 +210,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
     updateProfile,
+    updatePassword,
     resetPassword,
+    deleteAccount,
     userProfile,
     refreshProfile,
     isConfigured: isSupabaseConfigured()

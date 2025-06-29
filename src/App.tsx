@@ -3,7 +3,7 @@ import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogI
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
 import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
-import { saveThought, getUserThoughts, addToFavorites, removeFromFavorites } from './services/thoughtsService';
+import { saveThought, getUserThoughts, addToFavorites, removeFromFavorites, syncLocalDataToDatabase } from './services/thoughtsService';
 import { checkRateLimit } from './utils/rateLimit';
 import { addToHistory, getThoughtHistory, exportThoughts } from './utils/storage';
 import { env } from './config/environment';
@@ -19,6 +19,8 @@ import AuthModal from './components/auth/AuthModal';
 import UserProfile from './components/auth/UserProfile';
 import CloudSyncIndicator from './components/CloudSyncIndicator';
 import UserStats from './components/UserStats';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import ResetPasswordForm from './components/auth/ResetPasswordForm';
 
 function AppContent() {
   const { user, isConfigured: isAuthConfigured } = useAuth();
@@ -32,6 +34,16 @@ function AppContent() {
   const [showUserStats, setShowUserStats] = useState(false);
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
+
+  // Check if this is a password reset page
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    if (type === 'recovery') {
+      setIsPasswordReset(true);
+    }
+  }, []);
 
   // Update page title
   useEffect(() => {
@@ -42,6 +54,7 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       loadUserThoughts();
+      handleDataSync();
     }
   }, [user]);
 
@@ -51,6 +64,14 @@ function AppContent() {
       setThoughts(userThoughts);
     } catch (error) {
       console.error('Error loading user thoughts:', error);
+    }
+  };
+
+  const handleDataSync = async () => {
+    try {
+      await syncLocalDataToDatabase(user?.id);
+    } catch (error) {
+      console.error('Error syncing data:', error);
     }
   };
 
@@ -195,6 +216,23 @@ function AppContent() {
     }
   };
 
+  const handlePasswordResetSuccess = () => {
+    setIsPasswordReset(false);
+    // Clear the hash from URL
+    window.history.replaceState(null, '', window.location.pathname);
+  };
+
+  // Show password reset form if this is a password reset session
+  if (isPasswordReset) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-blue-200">
+          <ResetPasswordForm onSuccess={handlePasswordResetSuccess} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 relative overflow-hidden">
       {/* Decorative water drops */}
@@ -244,16 +282,19 @@ function AppContent() {
                 <History className="w-5 h-5" />
                 <span className="font-semibold hidden sm:inline">History</span>
               </button>
-              <button
-                onClick={() => setShowSaved(true)}
-                className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <Heart className="w-5 h-5" />
-                <span className="font-semibold hidden sm:inline">Favorites</span>
-              </button>
+              
+              <ProtectedRoute requireAuth={false}>
+                <button
+                  onClick={() => setShowSaved(true)}
+                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <Heart className="w-5 h-5" />
+                  <span className="font-semibold hidden sm:inline">Favorites</span>
+                </button>
+              </ProtectedRoute>
               
               {/* Stats Button (only for authenticated users) */}
-              {user && (
+              <ProtectedRoute requireAuth={true} fallback={<></>}>
                 <button
                   onClick={() => setShowUserStats(true)}
                   className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -261,7 +302,7 @@ function AppContent() {
                   <BarChart3 className="w-5 h-5" />
                   <span className="font-semibold hidden sm:inline">Stats</span>
                 </button>
-              )}
+              </ProtectedRoute>
               
               {/* Auth Button */}
               {isAuthConfigured && (

@@ -1,16 +1,20 @@
 import React from 'react';
 import { Droplets } from 'lucide-react';
 import { ShowerThought } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import ThoughtCard from './ThoughtCard';
+import AuthGuard from './auth/AuthGuard';
 
 interface ThoughtsListProps {
   thoughts: ShowerThought[];
-  onFavoriteChange?: () => void;
+  onFavoriteChange?: (thought: ShowerThought, isFavorite: boolean) => void;
   onRegenerate?: (thought: ShowerThought) => void;
   onExport?: (thought: ShowerThought) => void;
 }
 
 export default function ThoughtsList({ thoughts, onFavoriteChange, onRegenerate, onExport }: ThoughtsListProps) {
+  const { user, isConfigured } = useAuth();
+
   if (thoughts.length === 0) {
     return (
       <div className="text-center py-20">
@@ -24,6 +28,18 @@ export default function ThoughtsList({ thoughts, onFavoriteChange, onRegenerate,
           <p className="text-slate-600 text-lg">
             Generate your first shower thought above and let the wisdom flow! 🚿
           </p>
+          
+          {/* Show auth prompt if not signed in */}
+          {isConfigured && !user && (
+            <div className="mt-6">
+              <AuthGuard 
+                feature="Cloud Sync" 
+                description="Sign in to save your thoughts and access them from any device."
+              >
+                <div></div>
+              </AuthGuard>
+            </div>
+          )}
         </div>
       </div>
     );

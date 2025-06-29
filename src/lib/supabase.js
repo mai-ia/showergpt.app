@@ -94,6 +94,18 @@ export const authHelpers = {
     return data;
   },
 
+  // Update password
+  async updatePassword(newPassword) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+
   // Reset password
   async resetPassword(email) {
     if (!supabase) throw new Error('Supabase not configured');
@@ -104,6 +116,14 @@ export const authHelpers = {
     
     if (error) throw error;
     return data;
+  },
+
+  // Delete account
+  async deleteAccount() {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { error } = await supabase.auth.admin.deleteUser();
+    if (error) throw error;
   }
 };
 
@@ -172,6 +192,23 @@ export const dbHelpers = {
     
     if (error && error.code !== 'PGRST116') throw error; // Ignore "not found" errors
     return data;
+  },
+
+  // Delete user profile and all related data
+  async deleteUserData(userId) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    // Delete in order due to foreign key constraints
+    const operations = [
+      supabase.from('user_favorites').delete().eq('user_id', userId),
+      supabase.from('shower_thoughts').delete().eq('user_id', userId),
+      supabase.from('user_profiles').delete().eq('user_id', userId)
+    ];
+    
+    for (const operation of operations) {
+      const { error } = await operation;
+      if (error) throw error;
+    }
   }
 };
 

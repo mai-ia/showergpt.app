@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Calendar, Edit3, Save, X, LogOut } from 'lucide-react';
+import { User, Mail, Calendar, Edit3, Save, X, LogOut, Trash2, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface UserProfileProps {
@@ -8,11 +8,12 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
-  const { user, userProfile, updateProfile, signOut } = useAuth();
+  const { user, userProfile, updateProfile, signOut, deleteAccount } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({
     display_name: userProfile?.display_name || user?.user_metadata?.display_name || '',
     bio: userProfile?.bio || '',
@@ -44,6 +45,19 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to sign out');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      await deleteAccount();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete account');
+      setLoading(false);
     }
   };
 
@@ -92,6 +106,12 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
               <Mail className="w-4 h-4" />
               {user?.email}
             </p>
+            {user?.email_confirmed_at && (
+              <div className="flex items-center justify-center gap-1 mt-1">
+                <Shield className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-600 font-medium">Verified</span>
+              </div>
+            )}
           </div>
 
           {/* Profile Information */}
@@ -210,17 +230,65 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={handleSignOut}
-                className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={handleSignOut}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+                
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Account
+                </button>
+              </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-60">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-red-200">
+            <div className="text-center">
+              <div className="bg-red-100 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-800 mb-3">Delete Account?</h3>
+              <p className="text-slate-600 mb-6">
+                This will permanently delete your account and all your shower thoughts. This action cannot be undone.
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 bg-slate-200 text-slate-700 rounded-2xl hover:bg-slate-300 transition-all duration-300 font-semibold disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-300 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Delete Forever
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
