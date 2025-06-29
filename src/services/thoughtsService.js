@@ -10,6 +10,35 @@ const LOCAL_THOUGHTS_KEY = 'showergpt-user-thoughts';
 const LOCAL_FAVORITES_KEY = 'showergpt-user-favorites';
 
 /**
+ * Normalize ID to ensure it's a proper string format
+ */
+function normalizeId(id) {
+  if (!id) return null;
+  return typeof id === 'string' ? id : id.toString();
+}
+
+/**
+ * Validate UUID format
+ */
+function isValidUUID(id) {
+  if (!id || typeof id !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
+/**
+ * Safe UUID conversion for database operations
+ */
+function safeUUID(id) {
+  const normalizedId = normalizeId(id);
+  if (!normalizedId || !isValidUUID(normalizedId)) {
+    console.warn('Invalid UUID format:', id);
+    return null;
+  }
+  return normalizedId;
+}
+
+/**
  * Save a shower thought to the database or local storage
  */
 export async function saveThought(thought, userId = null) {
@@ -120,12 +149,17 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
  */
 export async function deleteThought(thoughtId, userId = null) {
   try {
+    const safeThoughtId = safeUUID(thoughtId);
+    if (!safeThoughtId) {
+      throw new Error('Invalid thought ID format');
+    }
+
     // If Supabase is configured and user is authenticated, delete from database
     if (isSupabaseConfigured() && userId && supabase) {
       const { error } = await supabase
         .from('shower_thoughts')
         .delete()
-        .eq('id', thoughtId)
+        .eq('id', safeThoughtId)
         .eq('user_id', userId);
 
       if (error) throw error;
@@ -148,11 +182,16 @@ export async function deleteThought(thoughtId, userId = null) {
  */
 export async function addToFavorites(thought, userId = null) {
   try {
+    const safeThoughtId = safeUUID(thought.id);
+    if (!safeThoughtId) {
+      throw new Error('Invalid thought ID format');
+    }
+
     // If Supabase is configured and user is authenticated, save to database
     if (isSupabaseConfigured() && userId && supabase) {
       const favoriteData = {
         user_id: userId,
-        thought_id: thought.id,
+        thought_id: safeThoughtId,
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
@@ -206,12 +245,17 @@ export async function addToFavorites(thought, userId = null) {
  */
 export async function removeFromFavorites(thoughtId, userId = null) {
   try {
+    const safeThoughtId = safeUUID(thoughtId);
+    if (!safeThoughtId) {
+      throw new Error('Invalid thought ID format');
+    }
+
     // If Supabase is configured and user is authenticated, remove from database
     if (isSupabaseConfigured() && userId && supabase) {
       const { error } = await supabase
         .from('user_favorites')
         .delete()
-        .eq('thought_id', thoughtId)
+        .eq('thought_id', safeThoughtId)
         .eq('user_id', userId);
 
       if (error) throw error;
@@ -270,12 +314,17 @@ export async function getUserFavorites(userId = null, limit = 50) {
  */
 export async function isThoughtFavorited(thoughtId, userId = null) {
   try {
+    const safeThoughtId = safeUUID(thoughtId);
+    if (!safeThoughtId) {
+      return false;
+    }
+
     // If Supabase is configured and user is authenticated, check database
     if (isSupabaseConfigured() && userId && supabase) {
       const { data, error } = await supabase
         .from('user_favorites')
         .select('thought_id')
-        .eq('thought_id', thoughtId)
+        .eq('thought_id', safeThoughtId)
         .eq('user_id', userId)
         .limit(1);
 
@@ -297,11 +346,20 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
  */
 export async function incrementThoughtViews(thoughtId) {
   try {
+    const safeThoughtId = safeUUID(thoughtId);
+    if (!safeThoughtId) {
+      console.warn('Invalid thought ID for view increment:', thoughtId);
+      return 1;
+    }
+
     if (isSupabaseConfigured() && supabase) {
       const { data, error } = await supabase
-        .rpc('increment_thought_views', { thought_id: thoughtId });
+        .rpc('increment_thought_views', { thought_id: safeThoughtId });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error incrementing views:', error);
+        return 1;
+      }
       return data || 1;
     }
     return 1; // Fallback for local storage
@@ -316,14 +374,23 @@ export async function incrementThoughtViews(thoughtId) {
  */
 export async function toggleThoughtLike(thoughtId, userId = null) {
   try {
+    const safeThoughtId = safeUUID(thoughtId);
+    if (!safeThoughtId) {
+      console.warn('Invalid thought ID for like toggle:', thoughtId);
+      return 0;
+    }
+
     if (isSupabaseConfigured() && userId && supabase) {
       const { data, error } = await supabase
         .rpc('toggle_thought_like', { 
-          thought_id: thoughtId, 
+          thought_id: safeThoughtId, 
           user_id: userId 
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error toggling like:', error);
+        return 0;
+      }
       return data || 0;
     }
     return 0; // Fallback for local storage
@@ -338,11 +405,20 @@ export async function toggleThoughtLike(thoughtId, userId = null) {
  */
 export async function incrementThoughtShares(thoughtId) {
   try {
+    const safeThoughtId = safeUUID(thoughtId);
+    if (!safeThoughtId) {
+      console.warn('Invalid thought ID for share increment:', thoughtId);
+      return 1;
+    }
+
     if (isSupabaseConfigured() && supabase) {
       const { data, error } = await supabase
-        .rpc('increment_thought_shares', { thought_id: thoughtId });
+        .rpc('increment_thought_shares', { thought_id: safeThoughtId });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error incrementing shares:', error);
+        return 1;
+      }
       return data || 1;
     }
     return 1; // Fallback for local storage
@@ -358,13 +434,20 @@ export async function incrementThoughtShares(thoughtId) {
 export async function reorderFavorites(userId, orderedIds) {
   try {
     if (isSupabaseConfigured() && userId && supabase) {
+      // Validate all IDs before processing
+      const safeIds = orderedIds.map(id => safeUUID(id)).filter(Boolean);
+      
+      if (safeIds.length !== orderedIds.length) {
+        console.warn('Some invalid UUIDs found in reorder operation');
+      }
+
       // Update the order in the database
-      for (let i = 0; i < orderedIds.length; i++) {
+      for (let i = 0; i < safeIds.length; i++) {
         await supabase
           .from('user_favorites')
           .update({ order_index: i })
           .eq('user_id', userId)
-          .eq('thought_id', orderedIds[i]);
+          .eq('thought_id', safeIds[i]);
       }
     }
     // For local storage, the order is maintained by the array order
