@@ -43,6 +43,17 @@ const ThoughtItem = memo(function ThoughtItem({
       />
     </div>
   );
+}, (prevProps, nextProps) => {
+  // Optimize re-renders by comparing thought ID and data references
+  const prevThought = prevProps.data.thoughts[prevProps.index];
+  const nextThought = nextProps.data.thoughts[nextProps.index];
+  
+  return (
+    prevThought?.id === nextThought?.id &&
+    prevProps.data.onFavoriteChange === nextProps.data.onFavoriteChange &&
+    prevProps.data.onRegenerate === nextProps.data.onRegenerate &&
+    prevProps.data.onExport === nextProps.data.onExport
+  );
 });
 
 const VirtualizedThoughtsList = memo(function VirtualizedThoughtsList({
@@ -92,6 +103,19 @@ const VirtualizedThoughtsList = memo(function VirtualizedThoughtsList({
         {ThoughtItem}
       </List>
     </div>
+  );
+}, (prevProps, nextProps) => {
+  // Memoize based on thoughts array length and callback references
+  return (
+    prevProps.thoughts.length === nextProps.thoughts.length &&
+    prevProps.thoughts.every((thought, index) => 
+      thought.id === nextProps.thoughts[index]?.id
+    ) &&
+    prevProps.onFavoriteChange === nextProps.onFavoriteChange &&
+    prevProps.onRegenerate === nextProps.onRegenerate &&
+    prevProps.onExport === nextProps.onExport &&
+    prevProps.height === nextProps.height &&
+    prevProps.itemHeight === nextProps.itemHeight
   );
 });
 

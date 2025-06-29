@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { ShowerThought, SearchFilters } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserThoughts } from '../services/thoughtsService';
@@ -12,7 +12,7 @@ interface InfiniteScrollThoughtsProps {
   onExport?: (thought: ShowerThought) => void;
 }
 
-export default function InfiniteScrollThoughts({ 
+const InfiniteScrollThoughts = memo(function InfiniteScrollThoughts({ 
   onFavoriteChange, 
   onRegenerate, 
   onExport 
@@ -233,4 +233,13 @@ export default function InfiniteScrollThoughts({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Memoize based on callback function references
+  return (
+    prevProps.onFavoriteChange === nextProps.onFavoriteChange &&
+    prevProps.onRegenerate === nextProps.onRegenerate &&
+    prevProps.onExport === nextProps.onExport
+  );
+});
+
+export default InfiniteScrollThoughts;

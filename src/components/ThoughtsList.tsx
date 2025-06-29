@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Droplets } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,7 +12,12 @@ interface ThoughtsListProps {
   onExport?: (thought: ShowerThought) => void;
 }
 
-export default function ThoughtsList({ thoughts, onFavoriteChange, onRegenerate, onExport }: ThoughtsListProps) {
+const ThoughtsList = memo(function ThoughtsList({ 
+  thoughts, 
+  onFavoriteChange, 
+  onRegenerate, 
+  onExport 
+}: ThoughtsListProps) {
   const { user, isConfigured } = useAuth();
 
   if (thoughts.length === 0) {
@@ -64,4 +69,25 @@ export default function ThoughtsList({ thoughts, onFavoriteChange, onRegenerate,
       ))}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Compare thoughts array length and IDs for efficient memoization
+  if (prevProps.thoughts.length !== nextProps.thoughts.length) {
+    return false;
+  }
+
+  // Check if any thought IDs changed
+  for (let i = 0; i < prevProps.thoughts.length; i++) {
+    if (prevProps.thoughts[i].id !== nextProps.thoughts[i].id) {
+      return false;
+    }
+  }
+
+  // Check if callback functions changed
+  return (
+    prevProps.onFavoriteChange === nextProps.onFavoriteChange &&
+    prevProps.onRegenerate === nextProps.onRegenerate &&
+    prevProps.onExport === nextProps.onExport
+  );
+});
+
+export default ThoughtsList;

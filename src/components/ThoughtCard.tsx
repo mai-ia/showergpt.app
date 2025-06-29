@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, memo } from 'react';
+import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink, MessageCircle, MoreVertical } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike, incrementThoughtShares } from '../services/thoughtsService';
 import { getCategoryById } from '../data/categories';
@@ -15,7 +15,13 @@ interface ThoughtCardProps {
   showAuthor?: boolean;
 }
 
-export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, onExport, showAuthor = false }: ThoughtCardProps) {
+const ThoughtCard = memo(function ThoughtCard({ 
+  thought, 
+  onFavoriteChange, 
+  onRegenerate, 
+  onExport, 
+  showAuthor = false 
+}: ThoughtCardProps) {
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(thought.isFavorite || false);
   const [isLiked, setIsLiked] = useState(false);
@@ -403,4 +409,20 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
       />
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for optimal memoization
+  return (
+    prevProps.thought.id === nextProps.thought.id &&
+    prevProps.thought.content === nextProps.thought.content &&
+    prevProps.thought.isFavorite === nextProps.thought.isFavorite &&
+    prevProps.thought.views === nextProps.thought.views &&
+    prevProps.thought.likes === nextProps.thought.likes &&
+    prevProps.thought.shares === nextProps.thought.shares &&
+    prevProps.showAuthor === nextProps.showAuthor &&
+    prevProps.onFavoriteChange === nextProps.onFavoriteChange &&
+    prevProps.onRegenerate === nextProps.onRegenerate &&
+    prevProps.onExport === nextProps.onExport
+  );
+});
+
+export default ThoughtCard;
