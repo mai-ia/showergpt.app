@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
+import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
 import { checkRateLimit } from './utils/rateLimit';
 import { addToHistory, getThoughtHistory, exportThoughts } from './utils/storage';
 import InputSection from './components/InputSection';
@@ -27,29 +28,38 @@ function App() {
   const handleGenerate = async (request: GenerationRequest) => {
     setError('');
     
-    // Check rate limit
-    const rateCheck = checkRateLimit();
-    if (!rateCheck.allowed) {
-      const resetDate = new Date(rateCheck.resetTime!);
-      const resetTime = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setError(`Rate limit exceeded. Try again after ${resetTime}.`);
-      return;
+    // Check rate limit for template generation
+    if (!request.useAI) {
+      const rateCheck = checkRateLimit();
+      if (!rateCheck.allowed) {
+        const resetDate = new Date(rateCheck.resetTime!);
+        const resetTime = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setError(`Rate limit exceeded. Try again after ${resetTime}.`);
+        return;
+      }
     }
 
     setIsLoading(true);
     
     try {
-      // Simulate API delay for realistic experience
-      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+      let newThought: ShowerThought;
       
-      const newThought = generateShowerThought(request);
+      if (request.useAI && isOpenAIConfigured()) {
+        // Use OpenAI API
+        newThought = await generateShowerThoughtWithAI(request);
+      } else {
+        // Use template generation with simulated delay
+        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+        newThought = generateShowerThought(request);
+      }
+      
       setThoughts(prev => [newThought, ...prev]);
       
       // Add to history
       addToHistory(newThought);
       setHistoryRefresh(prev => prev + 1);
-    } catch (err) {
-      setError('Failed to generate thought. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate thought. Please try again.');
       console.error('Generation error:', err);
     } finally {
       setIsLoading(false);
@@ -59,29 +69,41 @@ function App() {
   const handleRegenerate = async (originalThought: ShowerThought) => {
     setError('');
     
-    // Check rate limit
-    const rateCheck = checkRateLimit();
-    if (!rateCheck.allowed) {
-      const resetDate = new Date(rateCheck.resetTime!);
-      const resetTime = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setError(`Rate limit exceeded. Try again after ${resetTime}.`);
-      return;
+    // Check if original thought was AI-generated
+    const useAI = originalThought.source === 'openai';
+    
+    // Check rate limit for template generation
+    if (!useAI) {
+      const rateCheck = checkRateLimit();
+      if (!rateCheck.allowed) {
+        const resetDate = new Date(rateCheck.resetTime!);
+        const resetTime = resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setError(`Rate limit exceeded. Try again after ${resetTime}.`);
+        return;
+      }
     }
 
     setIsLoading(true);
     
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+      let variation: ShowerThought;
       
-      const variation = generateVariation(originalThought);
+      if (useAI && isOpenAIConfigured()) {
+        // Use OpenAI API for variation
+        variation = await generateVariationWithAI(originalThought);
+      } else {
+        // Use template generation with simulated delay
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+        variation = generateVariation(originalThought);
+      }
+      
       setThoughts(prev => [variation, ...prev]);
       
       // Add to history
       addToHistory(variation);
       setHistoryRefresh(prev => prev + 1);
-    } catch (err) {
-      setError('Failed to generate variation. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate variation. Please try again.');
       console.error('Regeneration error:', err);
     } finally {
       setIsLoading(false);
@@ -150,7 +172,9 @@ function App() {
                   </p>
                   <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
                     <Waves className="w-4 h-4 text-blue-200" />
-                    <span className="text-blue-200 text-sm">Where brilliant ideas flow</span>
+                    <span className="text-blue-200 text-sm">
+                      {isOpenAIConfigured() ? 'AI-powered brilliance' : 'Where brilliant ideas flow'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -269,10 +293,16 @@ function App() {
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Droplets className="w-5 h-5 text-blue-500" />
-                <span className="text-slate-700 font-medium">Crafted with 💧 for moments of contemplation</span>
+                <span className="text-slate-700 font-medium">
+                  Crafted with 💧 for moments of contemplation
+                </span>
               </div>
               <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Rate limited to 5 thoughts per minute for optimal shower-like pacing. 
+                {isOpenAIConfigured() 
+                  ? 'AI-powered thoughts with rate limiting for optimal creativity and cost control.'
+                  : 'Rate limited to 5 thoughts per minute for optimal shower-like pacing.'
+                }
+                <br />
                 Because the best ideas need time to marinate.
               </p>
             </div>

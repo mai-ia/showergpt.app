@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Droplets, Shuffle, Zap, Lightbulb } from 'lucide-react';
+import { Droplets, Shuffle, Zap, Lightbulb, Sparkles } from 'lucide-react';
 import { GenerationRequest } from '../types';
 import { getRandomTopic } from '../utils/thoughtGenerator';
+import { isOpenAIConfigured } from '../services/openaiService';
+import ApiUsageIndicator from './ApiUsageIndicator';
 
 interface InputSectionProps {
   onGenerate: (request: GenerationRequest) => void;
@@ -12,10 +14,11 @@ interface InputSectionProps {
 export default function InputSection({ onGenerate, isLoading, error }: InputSectionProps) {
   const [topic, setTopic] = useState('');
   const [mood, setMood] = useState<'philosophical' | 'humorous' | 'scientific'>('philosophical');
+  const [useAI, setUseAI] = useState(isOpenAIConfigured());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onGenerate({ topic: topic.trim(), mood });
+    onGenerate({ topic: topic.trim(), mood, useAI });
   };
 
   const handleRandomTopic = () => {
@@ -57,6 +60,34 @@ export default function InputSection({ onGenerate, isLoading, error }: InputSect
           <p className="text-slate-600 mt-1">Let your mind wander into the depths of contemplation</p>
         </div>
       </div>
+
+      {/* AI Toggle and Usage Indicator */}
+      {isOpenAIConfigured() && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useAI}
+                  onChange={(e) => setUseAI(e.target.checked)}
+                  className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  <span className="text-lg font-semibold text-slate-800">
+                    AI-Powered Generation
+                  </span>
+                </div>
+              </label>
+              <div className="text-sm text-slate-600">
+                {useAI ? 'Using OpenAI for creative thoughts' : 'Using built-in templates'}
+              </div>
+            </div>
+            {useAI && <ApiUsageIndicator />}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div>
@@ -139,12 +170,16 @@ export default function InputSection({ onGenerate, isLoading, error }: InputSect
           {isLoading ? (
             <>
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
-              <span>Generating...</span>
+              <span>
+                {useAI ? 'AI is thinking...' : 'Generating...'}
+              </span>
             </>
           ) : (
             <>
-              <Zap className="w-6 h-6" />
-              <span>Generate Shower Thought</span>
+              {useAI ? <Sparkles className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
+              <span>
+                Generate {useAI ? 'AI-Powered' : ''} Shower Thought
+              </span>
             </>
           )}
         </button>

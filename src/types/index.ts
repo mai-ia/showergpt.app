@@ -6,11 +6,15 @@ export interface ShowerThought {
   mood: 'philosophical' | 'humorous' | 'scientific';
   isFavorite: boolean;
   variations?: string[];
+  source?: 'template' | 'openai';
+  tokensUsed?: number;
+  cost?: number;
 }
 
 export interface GenerationRequest {
   topic: string;
   mood: 'philosophical' | 'humorous' | 'scientific';
+  useAI?: boolean;
 }
 
 export interface RateLimit {

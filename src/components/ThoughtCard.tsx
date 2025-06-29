@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download } from 'lucide-react';
+import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { addToFavorites, removeFromFavorites, getFavorites } from '../utils/storage';
 
@@ -118,9 +118,17 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
       {/* Decorative gradient overlay */}
       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${moodConfig.gradient}`}></div>
       
-      {/* Floating sparkle decoration */}
-      <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity duration-300">
-        <Sparkles className="w-6 h-6 text-blue-400" />
+      {/* AI indicator and floating sparkle decoration */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        {thought.source === 'openai' && (
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            AI
+          </div>
+        )}
+        <div className="opacity-20 group-hover:opacity-40 transition-opacity duration-300">
+          <Sparkles className="w-6 h-6 text-blue-400" />
+        </div>
       </div>
 
       <div className="flex items-start justify-between mb-6">
@@ -158,6 +166,26 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
             <span className="text-sm text-green-700 font-medium">
               {thought.variations.length} variation{thought.variations.length > 1 ? 's' : ''} generated
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* AI Usage Stats */}
+      {thought.source === 'openai' && (thought.tokensUsed || thought.cost) && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-2xl border border-purple-200">
+          <div className="flex items-center gap-4 text-sm">
+            {thought.tokensUsed && (
+              <div className="flex items-center gap-1 text-purple-700">
+                <Zap className="w-4 h-4" />
+                <span>{thought.tokensUsed} tokens</span>
+              </div>
+            )}
+            {thought.cost && (
+              <div className="flex items-center gap-1 text-purple-700">
+                <DollarSign className="w-4 h-4" />
+                <span>${thought.cost.toFixed(4)}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
