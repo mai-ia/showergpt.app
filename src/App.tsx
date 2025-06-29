@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn } from 'lucide-react';
+import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3 } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
 import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
+import { saveThought, getUserThoughts, addToFavorites, removeFromFavorites } from './services/thoughtsService';
 import { checkRateLimit } from './utils/rateLimit';
 import { addToHistory, getThoughtHistory, exportThoughts } from './utils/storage';
 import { env } from './config/environment';
@@ -16,6 +17,8 @@ import EnvironmentWarning from './components/EnvironmentWarning';
 import SupabaseWarning from './components/SupabaseWarning';
 import AuthModal from './components/auth/AuthModal';
 import UserProfile from './components/auth/UserProfile';
+import CloudSyncIndicator from './components/CloudSyncIndicator';
+import UserStats from './components/UserStats';
 
 function AppContent() {
   const { user, isConfigured: isAuthConfigured } = useAuth();
@@ -26,6 +29,7 @@ function AppContent() {
   const [showHistory, setShowHistory] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showUserStats, setShowUserStats] = useState(false);
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
 
@@ -33,6 +37,22 @@ function AppContent() {
   useEffect(() => {
     document.title = '🚿 ShowerGPT - Whimsical Shower Thoughts';
   }, []);
+
+  // Load user's thoughts when they sign in
+  useEffect(() => {
+    if (user) {
+      loadUserThoughts();
+    }
+  }, [user]);
+
+  const loadUserThoughts = async () => {
+    try {
+      const userThoughts = await getUserThoughts(user?.id, 10); // Load recent thoughts
+      setThoughts(userThoughts);
+    } catch (error) {
+      console.error('Error loading user thoughts:', error);
+    }
+  };
 
   const handleGenerate = async (request: GenerationRequest) => {
     setError('');
@@ -62,9 +82,17 @@ function AppContent() {
         newThought = generateShowerThought(request);
       }
       
-      setThoughts(prev => [newThought, ...prev]);
+      // Save thought to database/local storage
+      try {
+        const savedThought = await saveThought(newThought, user?.id);
+        setThoughts(prev => [savedThought, ...prev]);
+      } catch (saveError) {
+        console.error('Error saving thought:', saveError);
+        // Still show the thought even if save failed
+        setThoughts(prev => [newThought, ...prev]);
+      }
       
-      // Add to history
+      // Add to history (legacy support)
       addToHistory(newThought);
       setHistoryRefresh(prev => prev + 1);
     } catch (err: any) {
@@ -106,9 +134,17 @@ function AppContent() {
         variation = generateVariation(originalThought);
       }
       
-      setThoughts(prev => [variation, ...prev]);
+      // Save variation to database/local storage
+      try {
+        const savedVariation = await saveThought(variation, user?.id);
+        setThoughts(prev => [savedVariation, ...prev]);
+      } catch (saveError) {
+        console.error('Error saving variation:', saveError);
+        // Still show the variation even if save failed
+        setThoughts(prev => [variation, ...prev]);
+      }
       
-      // Add to history
+      // Add to history (legacy support)
       addToHistory(variation);
       setHistoryRefresh(prev => prev + 1);
     } catch (err: any) {
@@ -119,8 +155,18 @@ function AppContent() {
     }
   };
 
-  const handleFavoriteChange = () => {
-    setSavedThoughtsRefresh(prev => prev + 1);
+  const handleFavoriteToggle = async (thought: ShowerThought, isFavorite: boolean) => {
+    try {
+      if (isFavorite) {
+        await addToFavorites(thought, user?.id);
+      } else {
+        await removeFromFavorites(thought.id, user?.id);
+      }
+      setSavedThoughtsRefresh(prev => prev + 1);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      setError('Failed to update favorite. Please try again.');
+    }
   };
 
   const handleClearAll = () => {
@@ -188,6 +234,9 @@ function AppContent() {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Cloud Sync Indicator */}
+              <CloudSyncIndicator />
+              
               <button
                 onClick={() => setShowHistory(true)}
                 className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -202,6 +251,17 @@ function AppContent() {
                 <Heart className="w-5 h-5" />
                 <span className="font-semibold hidden sm:inline">Favorites</span>
               </button>
+              
+              {/* Stats Button (only for authenticated users) */}
+              {user && (
+                <button
+                  onClick={() => setShowUserStats(true)}
+                  className="flex items-center gap-3 px-6 py-3 bg-white bg-opacity-20 backdrop-blur-sm text-white rounded-2xl hover:bg-opacity-30 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  <span className="font-semibold hidden sm:inline">Stats</span>
+                </button>
+              )}
               
               {/* Auth Button */}
               {isAuthConfigured && (
@@ -305,7 +365,7 @@ function AppContent() {
           
           <ThoughtsList
             thoughts={thoughts}
-            onFavoriteChange={handleFavoriteChange}
+            onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
             onRegenerate={handleRegenerate}
             onExport={handleExportSingle}
           />
@@ -361,6 +421,13 @@ function AppContent() {
         <UserProfile
           isOpen={showUserProfile}
           onClose={() => setShowUserProfile(false)}
+        />
+      )}
+
+      {showUserStats && (
+        <UserStats
+          isOpen={showUserStats}
+          onClose={() => setShowUserStats(false)}
         />
       )}
     </div>

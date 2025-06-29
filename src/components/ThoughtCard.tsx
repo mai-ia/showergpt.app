@@ -1,35 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign } from 'lucide-react';
 import { ShowerThought } from '../types';
-import { addToFavorites, removeFromFavorites, getFavorites } from '../utils/storage';
+import { isThoughtFavorited } from '../services/thoughtsService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ThoughtCardProps {
   thought: ShowerThought;
-  onFavoriteChange?: () => void;
+  onFavoriteChange?: (thought: ShowerThought, isFavorite: boolean) => void;
   onRegenerate?: (thought: ShowerThought) => void;
   onExport?: (thought: ShowerThought) => void;
 }
 
 export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, onExport }: ThoughtCardProps) {
-  const [isFavorite, setIsFavorite] = useState(() => {
-    const favorites = getFavorites();
-    return favorites.some(fav => fav.id === thought.id);
-  });
+  const { user } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(thought.isFavorite || false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleFavorite = () => {
+  // Check if thought is favorited when component mounts
+  useEffect(() => {
+    checkFavoriteStatus();
+  }, [thought.id, user]);
+
+  const checkFavoriteStatus = async () => {
     try {
-      if (isFavorite) {
-        removeFromFavorites(thought.id);
-        setIsFavorite(false);
-      } else {
-        addToFavorites(thought);
-        setIsFavorite(true);
-      }
-      onFavoriteChange?.();
+      const favorited = await isThoughtFavorited(thought.id, user?.id);
+      setIsFavorite(favorited);
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (loading) return;
+    
+    setLoading(true);
+    const newFavoriteState = !isFavorite;
+    
+    try {
+      await onFavoriteChange?.(thought, newFavoriteState);
+      setIsFavorite(newFavoriteState);
     } catch (error) {
       console.error('Error updating favorite:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -193,14 +208,15 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
       <div className="flex items-center justify-between pt-6 border-t border-slate-100">
         <button
           onClick={handleFavorite}
-          className={`flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 ${
+          disabled={loading}
+          className={`flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
             isFavorite
               ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
               : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-red-50 hover:to-red-100 hover:text-red-600'
           }`}
         >
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-          <span>{isFavorite ? 'Saved' : 'Save'}</span>
+          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''} ${loading ? 'animate-pulse' : ''}`} />
+          <span>{loading ? 'Saving...' : isFavorite ? 'Saved' : 'Save'}</span>
         </button>
 
         <div className="flex items-center gap-3">

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, X, Droplets } from 'lucide-react';
 import { ShowerThought } from '../types';
-import { getSavedThoughts, removeSavedThought } from '../utils/storage';
+import { getUserFavorites } from '../services/thoughtsService';
+import { useAuth } from '../contexts/AuthContext';
 import ThoughtCard from './ThoughtCard';
 
 interface SavedThoughtsProps {
@@ -10,14 +11,31 @@ interface SavedThoughtsProps {
 }
 
 export default function SavedThoughts({ onClose, refreshTrigger }: SavedThoughtsProps) {
+  const { user } = useAuth();
   const [savedThoughts, setSavedThoughts] = useState<ShowerThought[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    setSavedThoughts(getSavedThoughts());
-  }, [refreshTrigger]);
+    loadSavedThoughts();
+  }, [refreshTrigger, user]);
+
+  const loadSavedThoughts = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const favorites = await getUserFavorites(user?.id);
+      setSavedThoughts(favorites);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load saved thoughts');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFavoriteChange = () => {
-    setSavedThoughts(getSavedThoughts());
+    loadSavedThoughts(); // Reload the list when favorites change
   };
 
   return (
@@ -33,7 +51,7 @@ export default function SavedThoughts({ onClose, refreshTrigger }: SavedThoughts
                 Saved Thoughts
               </h2>
               <p className="text-slate-600 mt-1">
-                {savedThoughts.length} brilliant {savedThoughts.length === 1 ? 'thought' : 'thoughts'} saved
+                {loading ? 'Loading...' : `${savedThoughts.length} brilliant ${savedThoughts.length === 1 ? 'thought' : 'thoughts'} saved`}
               </p>
             </div>
           </div>
@@ -46,7 +64,24 @@ export default function SavedThoughts({ onClose, refreshTrigger }: SavedThoughts
         </div>
 
         <div className="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
-          {savedThoughts.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+              <p className="text-slate-600">Loading your saved thoughts...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-md mx-auto">
+                <p className="text-red-700 font-medium mb-4">{error}</p>
+                <button
+                  onClick={loadSavedThoughts}
+                  className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          ) : savedThoughts.length === 0 ? (
             <div className="text-center py-20">
               <div className="bg-gradient-to-r from-red-50 to-red-100 p-8 rounded-3xl max-w-md mx-auto">
                 <div className="mb-6">

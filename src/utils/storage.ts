@@ -1,9 +1,11 @@
 import { ShowerThought } from '../types';
+import { saveThought, getUserThoughts, addToFavorites, removeFromFavorites, getUserFavorites, deleteThought } from '../services/thoughtsService';
 
 const STORAGE_KEY = 'showergpt-saved-thoughts';
 const HISTORY_KEY = 'showergpt-history';
 const FAVORITES_KEY = 'showergpt-favorites';
 
+// Legacy functions for backward compatibility
 export function getSavedThoughts(): ShowerThought[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -68,7 +70,7 @@ export function clearHistory(): void {
   }
 }
 
-// Favorites management
+// Favorites management - Updated to use new service
 export function getFavorites(): ShowerThought[] {
   try {
     const favorites = localStorage.getItem(FAVORITES_KEY);
@@ -79,23 +81,35 @@ export function getFavorites(): ShowerThought[] {
   }
 }
 
-export function addToFavorites(thought: ShowerThought): void {
+export async function addToFavorites(thought: ShowerThought, userId?: string): Promise<void> {
   try {
-    const favorites = getFavorites();
-    const updated = [...favorites, { ...thought, isFavorite: true }];
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    if (userId) {
+      await addToFavorites(thought, userId);
+    } else {
+      // Fallback to local storage
+      const favorites = getFavorites();
+      const updated = [...favorites, { ...thought, isFavorite: true }];
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    }
   } catch (error) {
     console.error('Error adding to favorites:', error);
+    throw error;
   }
 }
 
-export function removeFromFavorites(thoughtId: string): void {
+export async function removeFromFavorites(thoughtId: string, userId?: string): Promise<void> {
   try {
-    const favorites = getFavorites();
-    const updated = favorites.filter(thought => thought.id !== thoughtId);
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    if (userId) {
+      await removeFromFavorites(thoughtId, userId);
+    } else {
+      // Fallback to local storage
+      const favorites = getFavorites();
+      const updated = favorites.filter(thought => thought.id !== thoughtId);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+    }
   } catch (error) {
     console.error('Error removing from favorites:', error);
+    throw error;
   }
 }
 
