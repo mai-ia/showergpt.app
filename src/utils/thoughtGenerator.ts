@@ -9,6 +9,8 @@ const philosophicalTemplates = [
   "What if every time we think about {topic}, we're actually changing its fundamental nature?",
   "Is {topic} the same thing observed by different consciousness, or different things appearing the same?",
   "If {topic} disappeared tomorrow, would the universe notice, or would it just reorganize around the absence?",
+  "What if {topic} is just the universe's way of procrastinating on something more important?",
+  "Maybe we don't experience {topic}, maybe {topic} experiences us through our consciousness.",
 ];
 
 const humorousTemplates = [
@@ -20,6 +22,8 @@ const humorousTemplates = [
   "{topic} is probably judging us for how we handle {topic}-related situations.",
   "If {topic} could vote, it would probably choose chaos just to mess with us.",
   "Imagine explaining {topic} to someone who's never encountered {topic}. Good luck with that.",
+  "What if {topic} is actually just a really elaborate prank by the universe?",
+  "If {topic} had feelings, it would probably be tired of being {topic} all the time.",
 ];
 
 const scientificTemplates = [
@@ -31,12 +35,15 @@ const scientificTemplates = [
   "The entropy of {topic} must be constantly increasing, but somehow it maintains its structure.",
   "If {topic} could be graphed, would it follow a normal distribution or something completely chaotic?",
   "What if {topic} is actually a manifestation of information trying to organize itself?",
+  "Could {topic} be evidence of a simulation running on cosmic-scale quantum computers?",
+  "What if {topic} is how the universe stores and processes information about itself?",
 ];
 
 const randomTopics = [
   "dreams", "time", "consciousness", "memories", "shadows", "mirrors", "music", "colors",
   "words", "numbers", "thoughts", "emotions", "laughter", "silence", "patterns", "chaos",
-  "infinity", "moments", "questions", "answers", "stories", "reality", "imagination", "truth"
+  "infinity", "moments", "questions", "answers", "stories", "reality", "imagination", "truth",
+  "space", "gravity", "light", "darkness", "energy", "matter", "existence", "perception"
 ];
 
 export function generateShowerThought(request: GenerationRequest): ShowerThought {
@@ -70,6 +77,25 @@ export function generateShowerThought(request: GenerationRequest): ShowerThought
     topic: topic || undefined,
     mood,
     isFavorite: false,
+    variations: []
+  };
+}
+
+export function generateVariation(originalThought: ShowerThought): ShowerThought {
+  const request: GenerationRequest = {
+    topic: originalThought.topic || getRandomTopic(),
+    mood: originalThought.mood
+  };
+  
+  const newThought = generateShowerThought(request);
+  
+  // Add the new variation to the original thought's variations
+  const variations = originalThought.variations || [];
+  variations.push(newThought.content);
+  
+  return {
+    ...newThought,
+    variations: variations.slice(-3) // Keep last 3 variations
   };
 }
 

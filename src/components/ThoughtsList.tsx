@@ -6,9 +6,11 @@ import ThoughtCard from './ThoughtCard';
 interface ThoughtsListProps {
   thoughts: ShowerThought[];
   onFavoriteChange?: () => void;
+  onRegenerate?: (thought: ShowerThought) => void;
+  onExport?: (thought: ShowerThought) => void;
 }
 
-export default function ThoughtsList({ thoughts, onFavoriteChange }: ThoughtsListProps) {
+export default function ThoughtsList({ thoughts, onFavoriteChange, onRegenerate, onExport }: ThoughtsListProps) {
   if (thoughts.length === 0) {
     return (
       <div className="text-center py-20">
@@ -39,6 +41,8 @@ export default function ThoughtsList({ thoughts, onFavoriteChange }: ThoughtsLis
           <ThoughtCard
             thought={thought}
             onFavoriteChange={onFavoriteChange}
+            onRegenerate={onRegenerate}
+            onExport={onExport}
           />
         </div>
       ))}
