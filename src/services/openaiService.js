@@ -1,6 +1,9 @@
 // OpenAI API Service for ShowerGPT
 // Optimized for hackathon use with cost controls and error handling
 
+import { env } from '../config/environment';
+import { getRandomMockThought, getMockThoughtByTopic } from '../data/mockData';
+
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const MAX_RETRIES = 3;
 const BASE_DELAY = 1000; // 1 second
@@ -12,8 +15,8 @@ const MODEL = 'gpt-3.5-turbo';
 
 // Rate limiting for API calls
 const API_RATE_LIMIT_KEY = 'openai-rate-limit';
-const MAX_API_CALLS = 10; // Limit API calls per hour for cost control
-const RATE_WINDOW_HOURS = 1;
+const MAX_API_CALLS = env.openai.rateLimit;
+const RATE_WINDOW_HOURS = env.openai.rateWindowHours;
 
 // Prompt templates optimized for different thought types
 const PROMPT_TEMPLATES = {
@@ -83,20 +86,26 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Generate shower thought using OpenAI API
+// Generate shower thought using OpenAI API or fallback to mock data
 export async function generateShowerThoughtWithAI(request) {
   const { topic, mood } = request;
+  
+  // If OpenAI is not configured or in dev mode with mock data enabled, use mock data
+  if (!env.openai.isConfigured || env.development.useMockData) {
+    console.log('🎭 Using mock data for development');
+    await sleep(1000 + Math.random() * 1000); // Simulate API delay
+    
+    if (topic) {
+      return getMockThoughtByTopic(topic, mood);
+    } else {
+      return getRandomMockThought(mood);
+    }
+  }
   
   // Check rate limit first
   const rateCheck = checkApiRateLimit();
   if (!rateCheck.allowed) {
     throw new Error(`API rate limit exceeded. Try again after ${rateCheck.resetTimeFormatted}. (${rateCheck.remaining} calls remaining this hour)`);
-  }
-  
-  // Get API key from environment
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your environment variables.');
   }
   
   const template = PROMPT_TEMPLATES[mood] || PROMPT_TEMPLATES.philosophical;
@@ -129,7 +138,7 @@ export async function generateShowerThoughtWithAI(request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${env.openai.apiKey}`
         },
         body: JSON.stringify(requestBody)
       });
@@ -259,10 +268,10 @@ export function getApiUsageStats() {
 
 // Check if OpenAI is configured and available
 export function isOpenAIConfigured() {
-  return !!import.meta.env.VITE_OPENAI_API_KEY;
+  return env.openai.isConfigured;
 }
 
-// Generate variation using OpenAI
+// Generate variation using OpenAI or mock data
 export async function generateVariationWithAI(originalThought) {
   const request = {
     topic: originalThought.topic || '',

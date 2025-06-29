@@ -5,11 +5,13 @@ import { generateShowerThought, generateVariation } from './utils/thoughtGenerat
 import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
 import { checkRateLimit } from './utils/rateLimit';
 import { addToHistory, getThoughtHistory, exportThoughts } from './utils/storage';
+import { env } from './config/environment';
 import InputSection from './components/InputSection';
 import ThoughtsList from './components/ThoughtsList';
 import SavedThoughts from './components/SavedThoughts';
 import HistoryPanel from './components/HistoryPanel';
 import ErrorBoundary from './components/ErrorBoundary';
+import EnvironmentWarning from './components/EnvironmentWarning';
 
 function App() {
   const [thoughts, setThoughts] = useState<ShowerThought[]>([]);
@@ -210,6 +212,9 @@ function App() {
 
         {/* Main Content */}
         <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Environment Warning */}
+          <EnvironmentWarning />
+
           <InputSection
             onGenerate={handleGenerate}
             isLoading={isLoading}
