@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink } from 'lucide-react';
+import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink, MessageCircle } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike } from '../services/thoughtsService';
 import { getCategoryById } from '../data/categories';
 import { useAuth } from '../contexts/AuthContext';
 import ShareableThoughtCard from './ShareableThoughtCard';
+import LiveComments from './realtime/LiveComments';
 
 interface ThoughtCardProps {
   thought: ShowerThought;
   onFavoriteChange?: (thought: ShowerThought, isFavorite: boolean) => void;
   onRegenerate?: (thought: ShowerThought) => void;
   onExport?: (thought: ShowerThought) => void;
+  showAuthor?: boolean;
 }
 
-export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, onExport }: ThoughtCardProps) {
+export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, onExport, showAuthor = false }: ThoughtCardProps) {
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(thought.isFavorite || false);
   const [isLiked, setIsLiked] = useState(false);
@@ -26,6 +28,7 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
   const [shareSuccess, setShareSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const category = getCategoryById(thought.category);
 
@@ -202,6 +205,23 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
           </div>
         </div>
 
+        {/* Author Info */}
+        {showAuthor && thought.author && (
+          <div className="mb-4 flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-2xl">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+              {thought.author.username?.slice(0, 2).toUpperCase() || '??'}
+            </div>
+            <div>
+              <div className="font-medium text-slate-800 dark:text-slate-200">
+                {thought.author.fullName || thought.author.username}
+              </div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                @{thought.author.username}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
           <p className="text-slate-800 dark:text-slate-200 text-xl leading-relaxed font-medium">
             "{thought.content}"
@@ -245,6 +265,13 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
             <Share2 className="w-4 h-4" />
             <span>{stats.shares}</span>
           </div>
+          <button
+            onClick={() => setShowComments(true)}
+            className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>Comments</span>
+          </button>
         </div>
 
         {thought.variations && thought.variations.length > 0 && (
@@ -307,20 +334,24 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleRegenerate}
-              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              title="Generate variation"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleExport}
-              className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-green-50 hover:to-green-100 dark:hover:from-green-900/20 dark:hover:to-green-800/20 hover:text-green-600 dark:hover:text-green-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              title="Export thought"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+            {onRegenerate && (
+              <button
+                onClick={handleRegenerate}
+                className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                title="Generate variation"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            )}
+            {onExport && (
+              <button
+                onClick={handleExport}
+                className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-green-50 hover:to-green-100 dark:hover:from-green-900/20 dark:hover:to-green-800/20 hover:text-green-600 dark:hover:text-green-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                title="Export thought"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={() => setShowShareCard(true)}
               className="p-2 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-purple-50 hover:to-purple-100 dark:hover:from-purple-900/20 dark:hover:to-purple-800/20 hover:text-purple-600 dark:hover:text-purple-400 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -359,6 +390,13 @@ export default function ThoughtCard({ thought, onFavoriteChange, onRegenerate, o
         thought={thought}
         isOpen={showShareCard}
         onClose={() => setShowShareCard(false)}
+      />
+
+      {/* Comments Modal */}
+      <LiveComments
+        thoughtId={thought.id}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
       />
     </>
   );

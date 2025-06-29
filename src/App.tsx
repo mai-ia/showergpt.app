@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip } from 'lucide-react';
+import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip, Zap, Users } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
 import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
@@ -25,6 +25,10 @@ import UserStats from './components/UserStats';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ResetPasswordForm from './components/auth/ResetPasswordForm';
 import ThemeToggle from './components/ThemeToggle';
+import LiveThoughtsFeed from './components/realtime/LiveThoughtsFeed';
+import OnlineUsers from './components/realtime/OnlineUsers';
+import LiveNotifications from './components/realtime/LiveNotifications';
+import LiveCollaboration from './components/realtime/LiveCollaboration';
 
 function AppContent() {
   const { user, isConfigured: isAuthConfigured } = useAuth();
@@ -38,6 +42,8 @@ function AppContent() {
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showUserStats, setShowUserStats] = useState(false);
   const [showInfiniteScroll, setShowInfiniteScroll] = useState(false);
+  const [showLiveFeed, setShowLiveFeed] = useState(false);
+  const [showCollaboration, setShowCollaboration] = useState(false);
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
@@ -282,12 +288,35 @@ function AppContent() {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-center">
               {/* Theme Toggle */}
               <ThemeToggle />
               
+              {/* Live Notifications */}
+              <LiveNotifications />
+              
               {/* Cloud Sync Indicator */}
               <CloudSyncIndicator />
+              
+              <button
+                onClick={() => setShowLiveFeed(!showLiveFeed)}
+                className={`flex items-center gap-3 px-6 py-3 backdrop-blur-sm text-white rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                  showLiveFeed ? 'bg-green-500 bg-opacity-80' : 'bg-white bg-opacity-20 hover:bg-opacity-30'
+                }`}
+              >
+                <Zap className="w-5 h-5" />
+                <span className="font-semibold hidden sm:inline">Live Feed</span>
+              </button>
+              
+              <button
+                onClick={() => setShowCollaboration(!showCollaboration)}
+                className={`flex items-center gap-3 px-6 py-3 backdrop-blur-sm text-white rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                  showCollaboration ? 'bg-purple-500 bg-opacity-80' : 'bg-white bg-opacity-20 hover:bg-opacity-30'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span className="font-semibold hidden sm:inline">Collaborate</span>
+              </button>
               
               <button
                 onClick={() => setShowHistory(true)}
@@ -357,119 +386,147 @@ function AppContent() {
 
       {/* Main Content */}
       <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Environment Warnings */}
-        <EnvironmentWarning />
-        <SupabaseWarning />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-3 space-y-8">
+            {/* Environment Warnings */}
+            <EnvironmentWarning />
+            <SupabaseWarning />
 
-        <InputSection
-          onGenerate={handleGenerate}
-          isLoading={isLoading}
-          error={error}
-        />
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-12 mb-12 border border-blue-100 dark:border-slate-700 text-center">
-            <div className="flex flex-col items-center gap-6">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Droplets className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Generating brilliant thoughts...</h3>
-                <p className="text-slate-600 dark:text-slate-400">Let the shower wisdom flow through you</p>
-              </div>
-              <div className="flex gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* View Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-lg border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setShowInfiniteScroll(false)}
-              className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                !showInfiniteScroll
-                  ? 'bg-blue-500 text-white shadow-lg'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              Recent Thoughts
-            </button>
-            <button
-              onClick={() => setShowInfiniteScroll(true)}
-              className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                showInfiniteScroll
-                  ? 'bg-blue-500 text-white shadow-lg'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              Browse All
-            </button>
-          </div>
-        </div>
-
-        {/* Thoughts Section */}
-        <section>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
-            <div className="flex items-center gap-4">
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-2xl shadow-lg">
-                <Sparkles className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
-                  {showInfiniteScroll ? 'All Thoughts' : 'Recent Thoughts'}
-                </h2>
-                {!showInfiniteScroll && thoughts.length > 0 && (
-                  <p className="text-slate-600 dark:text-slate-400 mt-1">
-                    {thoughts.length} brilliant {thoughts.length === 1 ? 'thought' : 'thoughts'} and counting
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            {!showInfiniteScroll && thoughts.length > 0 && (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleExportAll}
-                  className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
-                >
-                  <Download className="w-5 h-5" />
-                  <span className="hidden sm:inline">Export All</span>
-                </button>
-                <button
-                  onClick={handleClearAll}
-                  className="flex items-center gap-2 px-5 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  <span className="hidden sm:inline">Clear All</span>
-                </button>
+            {/* Live Features */}
+            {showLiveFeed && (
+              <div className="mb-8">
+                <LiveThoughtsFeed onThoughtUpdate={(thought) => {
+                  // Update local thoughts if needed
+                  setThoughts(prev => 
+                    prev.map(t => t.id === thought.id ? thought : t)
+                  );
+                }} />
               </div>
             )}
+
+            {showCollaboration && (
+              <div className="mb-8">
+                <LiveCollaboration />
+              </div>
+            )}
+
+            <InputSection
+              onGenerate={handleGenerate}
+              isLoading={isLoading}
+              error={error}
+            />
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-12 mb-12 border border-blue-100 dark:border-slate-700 text-center">
+                <div className="flex flex-col items-center gap-6">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Droplets className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Generating brilliant thoughts...</h3>
+                    <p className="text-slate-600 dark:text-slate-400">Let the shower wisdom flow through you</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* View Toggle */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-lg border border-slate-200 dark:border-slate-700">
+                <button
+                  onClick={() => setShowInfiniteScroll(false)}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
+                    !showInfiniteScroll
+                      ? 'bg-blue-500 text-white shadow-lg'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Recent Thoughts
+                </button>
+                <button
+                  onClick={() => setShowInfiniteScroll(true)}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
+                    showInfiniteScroll
+                      ? 'bg-blue-500 text-white shadow-lg'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Browse All
+                </button>
+              </div>
+            </div>
+
+            {/* Thoughts Section */}
+            <section>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-2xl shadow-lg">
+                    <Sparkles className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+                      {showInfiniteScroll ? 'All Thoughts' : 'Recent Thoughts'}
+                    </h2>
+                    {!showInfiniteScroll && thoughts.length > 0 && (
+                      <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        {thoughts.length} brilliant {thoughts.length === 1 ? 'thought' : 'thoughts'} and counting
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {!showInfiniteScroll && thoughts.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleExportAll}
+                      className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+                    >
+                      <Download className="w-5 h-5" />
+                      <span className="hidden sm:inline">Export All</span>
+                    </button>
+                    <button
+                      onClick={handleClearAll}
+                      className="flex items-center gap-2 px-5 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      <span className="hidden sm:inline">Clear All</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {showInfiniteScroll ? (
+                <InfiniteScrollThoughts
+                  onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                  onRegenerate={handleRegenerate}
+                  onExport={handleExportSingle}
+                />
+              ) : (
+                <ThoughtsList
+                  thoughts={thoughts}
+                  onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                  onRegenerate={handleRegenerate}
+                  onExport={handleExportSingle}
+                />
+              )}
+            </section>
           </div>
-          
-          {showInfiniteScroll ? (
-            <InfiniteScrollThoughts
-              onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
-              onRegenerate={handleRegenerate}
-              onExport={handleExportSingle}
-            />
-          ) : (
-            <ThoughtsList
-              thoughts={thoughts}
-              onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
-              onRegenerate={handleRegenerate}
-              onExport={handleExportSingle}
-            />
-          )}
-        </section>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            <OnlineUsers />
+          </div>
+        </div>
       </main>
 
       {/* Footer */}
