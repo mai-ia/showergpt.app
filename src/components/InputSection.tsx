@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Droplets, Shuffle, Zap } from 'lucide-react';
+import { Droplets, Shuffle, Zap, Lightbulb } from 'lucide-react';
 import { GenerationRequest } from '../types';
 import { getRandomTopic } from '../utils/thoughtGenerator';
 
@@ -22,57 +22,81 @@ export default function InputSection({ onGenerate, isLoading, error }: InputSect
     setTopic(getRandomTopic());
   };
 
+  const moodOptions = [
+    { 
+      value: 'philosophical', 
+      label: 'Philosophical', 
+      desc: 'Deep & contemplative',
+      icon: '🤔',
+      gradient: 'from-purple-500 to-purple-600'
+    },
+    { 
+      value: 'humorous', 
+      label: 'Humorous', 
+      desc: 'Light & funny',
+      icon: '😄',
+      gradient: 'from-orange-500 to-orange-600'
+    },
+    { 
+      value: 'scientific', 
+      label: 'Scientific', 
+      desc: 'Logical & curious',
+      icon: '🔬',
+      gradient: 'from-green-500 to-green-600'
+    }
+  ];
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-blue-100 p-3 rounded-full">
-          <Droplets className="w-6 h-6 text-blue-600" />
+    <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 mb-12 border border-blue-100 backdrop-blur-sm">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 rounded-2xl shadow-lg">
+          <Lightbulb className="w-7 h-7 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-800">Generate a Shower Thought</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-slate-800">Generate a Shower Thought</h2>
+          <p className="text-slate-600 mt-1">Let your mind wander into the depths of contemplation</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-8">
         <div>
-          <label htmlFor="topic" className="block text-sm font-medium text-slate-700 mb-2">
-            Topic or Theme (optional)
+          <label htmlFor="topic" className="block text-lg font-semibold text-slate-700 mb-4">
+            Topic or Theme <span className="text-slate-500 font-normal">(optional)</span>
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <input
               type="text"
               id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., time, dreams, existence..."
-              className="flex-1 px-4 py-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 outline-none"
+              placeholder="e.g., time, dreams, existence, consciousness..."
+              className="flex-1 px-6 py-4 border-2 border-blue-200 rounded-2xl focus:ring-4 focus:ring-blue-500 focus:ring-opacity-20 focus:border-blue-500 transition-all duration-300 outline-none text-lg shadow-lg hover:shadow-xl bg-gradient-to-r from-white to-blue-50"
               maxLength={50}
             />
             <button
               type="button"
               onClick={handleRandomTopic}
-              className="px-4 py-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors duration-300 flex items-center gap-2"
+              className="px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
               title="Random Topic"
             >
-              <Shuffle className="w-4 h-4" />
+              <Shuffle className="w-5 h-5" />
+              <span className="hidden sm:inline font-medium">Random</span>
             </button>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-3">
+          <label className="block text-lg font-semibold text-slate-700 mb-4">
             Thought Style
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              { value: 'philosophical', label: 'Philosophical', desc: 'Deep & contemplative' },
-              { value: 'humorous', label: 'Humorous', desc: 'Light & funny' },
-              { value: 'scientific', label: 'Scientific', desc: 'Logical & curious' }
-            ].map((option) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {moodOptions.map((option) => (
               <label
                 key={option.value}
-                className={`relative cursor-pointer p-4 rounded-xl border-2 transition-all duration-300 ${
+                className={`relative cursor-pointer p-6 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 ${
                   mood === option.value
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-blue-200 hover:border-blue-300 bg-white'
+                    ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 shadow-xl'
+                    : 'border-blue-200 hover:border-blue-300 bg-white hover:bg-blue-50 shadow-lg hover:shadow-xl'
                 }`}
               >
                 <input
@@ -84,34 +108,43 @@ export default function InputSection({ onGenerate, isLoading, error }: InputSect
                   className="sr-only"
                 />
                 <div className="text-center">
-                  <div className="font-semibold text-slate-800">{option.label}</div>
+                  <div className="text-3xl mb-2">{option.icon}</div>
+                  <div className="font-bold text-slate-800 text-lg mb-1">{option.label}</div>
                   <div className="text-sm text-slate-600">{option.desc}</div>
                 </div>
+                {mood === option.value && (
+                  <div className="absolute top-3 right-3">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  </div>
+                )}
               </label>
             ))}
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <p className="text-red-700 text-sm">{error}</p>
+          <div className="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-200 rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <p className="text-red-700 font-medium">{error}</p>
+            </div>
           </div>
         )}
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-blue-400 disabled:to-blue-500 text-white font-bold py-6 px-8 rounded-2xl transition-all duration-300 flex items-center justify-center gap-4 disabled:cursor-not-allowed shadow-2xl hover:shadow-blue-500/25 transform hover:scale-105 disabled:transform-none text-lg"
         >
           {isLoading ? (
             <>
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-              Generating...
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+              <span>Generating...</span>
             </>
           ) : (
             <>
-              <Zap className="w-5 h-5" />
-              Generate Shower Thought
+              <Zap className="w-6 h-6" />
+              <span>Generate Shower Thought</span>
             </>
           )}
         </button>
