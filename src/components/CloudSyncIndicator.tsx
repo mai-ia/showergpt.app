@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, CloudOff, Sync, Check, AlertCircle } from 'lucide-react';
+import { Cloud, CloudOff, FolderSync as Sync, Check, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { syncLocalDataToDatabase } from '../services/thoughtsService';
 
