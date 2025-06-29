@@ -20,14 +20,9 @@ export async function saveThought(thought, userId = null) {
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
-        category: thought.category || null,
-        tags: thought.tags || [],
         source: thought.source || 'template',
         tokens_used: thought.tokensUsed || null,
         cost: thought.cost || null,
-        views: 0,
-        likes: 0,
-        shares: 0,
         user_id: userId,
         created_at: new Date().toISOString()
       };
@@ -44,9 +39,9 @@ export async function saveThought(thought, userId = null) {
         ...thought,
         id: data.id,
         timestamp: new Date(data.created_at),
-        views: data.views,
-        likes: data.likes,
-        shares: data.shares
+        views: 0,
+        likes: 0,
+        shares: 0
       };
     } else {
       // Fallback to local storage
@@ -92,14 +87,12 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
         content: thought.content,
         topic: thought.topic,
         mood: thought.mood,
-        category: thought.category,
-        tags: thought.tags || [],
         source: thought.source || 'template',
         tokensUsed: thought.tokens_used,
         cost: thought.cost,
-        views: thought.views || 0,
-        likes: thought.likes || 0,
-        shares: thought.shares || 0,
+        views: 0, // shower_thoughts table doesn't have views
+        likes: 0, // shower_thoughts table doesn't have likes
+        shares: 0, // shower_thoughts table doesn't have shares
         timestamp: new Date(thought.created_at),
         isFavorite: false, // Will be set by favorites check
         variations: []
@@ -156,8 +149,6 @@ export async function addToFavorites(thought, userId = null) {
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
-        category: thought.category || null,
-        tags: thought.tags || [],
         source: thought.source || 'template',
         created_at: new Date().toISOString()
       };
@@ -252,8 +243,6 @@ export async function getUserFavorites(userId = null, limit = 50) {
         content: favorite.content,
         topic: favorite.topic,
         mood: favorite.mood,
-        category: favorite.category,
-        tags: favorite.tags || [],
         source: favorite.source || 'template',
         timestamp: new Date(favorite.created_at),
         isFavorite: true,
@@ -281,10 +270,10 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
         .select('thought_id')
         .eq('thought_id', thoughtId)
         .eq('user_id', userId)
-        .single();
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') throw error; // Ignore "not found" errors
-      return !!data;
+      if (error) throw error;
+      return data && data.length > 0;
     } else {
       // Fallback to local storage
       const localFavorites = getLocalFavorites();
@@ -298,17 +287,14 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
 
 /**
  * Increment thought views
+ * Note: Since shower_thoughts table doesn't have view tracking, this is a no-op for database
  */
 export async function incrementThoughtViews(thoughtId) {
   try {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase
-        .rpc('increment_thought_views', { thought_id: thoughtId });
-
-      if (error) throw error;
-      return data || 1;
-    }
-    return 1; // Fallback for local storage
+    // For shower_thoughts table, we don't track views in the database
+    // This function exists for compatibility but doesn't perform database operations
+    console.log('View tracking not implemented for shower_thoughts table');
+    return 1; // Return 1 to indicate the view was "counted"
   } catch (error) {
     console.error('Error incrementing views:', error);
     return 1;
@@ -317,20 +303,14 @@ export async function incrementThoughtViews(thoughtId) {
 
 /**
  * Toggle thought like
+ * Note: Since shower_thoughts table doesn't have like tracking, this is a no-op for database
  */
 export async function toggleThoughtLike(thoughtId, userId = null) {
   try {
-    if (isSupabaseConfigured() && userId && supabase) {
-      const { data, error } = await supabase
-        .rpc('toggle_thought_like', { 
-          thought_id: thoughtId, 
-          user_id: userId 
-        });
-
-      if (error) throw error;
-      return data || 0;
-    }
-    return 0; // Fallback for local storage
+    // For shower_thoughts table, we don't track likes in the database
+    // This function exists for compatibility but doesn't perform database operations
+    console.log('Like tracking not implemented for shower_thoughts table');
+    return 0; // Return 0 to indicate no likes
   } catch (error) {
     console.error('Error toggling like:', error);
     return 0;
@@ -370,7 +350,7 @@ export async function getUserStats(userId = null) {
       const [thoughtsResult, favoritesResult] = await Promise.all([
         supabase
           .from('shower_thoughts')
-          .select('id, mood, source, tokens_used, cost, category')
+          .select('id, mood, source, tokens_used, cost')
           .eq('user_id', userId),
         supabase
           .from('user_favorites')
@@ -396,11 +376,6 @@ export async function getUserStats(userId = null) {
           template: thoughts.filter(t => t.source === 'template').length,
           openai: thoughts.filter(t => t.source === 'openai').length
         },
-        categoryBreakdown: thoughts.reduce((acc, t) => {
-          const category = t.category || 'uncategorized';
-          acc[category] = (acc[category] || 0) + 1;
-          return acc;
-        }, {}),
         totalTokensUsed: thoughts.reduce((sum, t) => sum + (t.tokens_used || 0), 0),
         totalCost: thoughts.reduce((sum, t) => sum + (t.cost || 0), 0)
       };
@@ -423,11 +398,6 @@ export async function getUserStats(userId = null) {
           template: localThoughts.filter(t => t.source === 'template').length,
           openai: localThoughts.filter(t => t.source === 'openai').length
         },
-        categoryBreakdown: localThoughts.reduce((acc, t) => {
-          const category = t.category || 'uncategorized';
-          acc[category] = (acc[category] || 0) + 1;
-          return acc;
-        }, {}),
         totalTokensUsed: localThoughts.reduce((sum, t) => sum + (t.tokensUsed || 0), 0),
         totalCost: localThoughts.reduce((sum, t) => sum + (t.cost || 0), 0)
       };
