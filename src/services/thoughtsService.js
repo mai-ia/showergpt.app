@@ -242,24 +242,30 @@ export async function addToFavorites(thought, userId = null) {
   try {
     // If Supabase is configured and user is authenticated, save to database
     if (isSupabaseConfigured() && userId && supabase) {
-      // For database operations, ensure we have a valid UUID
+      let thoughtToFavorite = thought;
       let thoughtId = thought.id;
       
-      // If the thought doesn't have a valid UUID, it might be from local storage
+      // If the thought doesn't have a valid UUID, it's from local storage
+      // Save it to the database first to get a proper UUID
       if (!isValidUUID(thoughtId)) {
-        console.warn('Thought has invalid UUID, this might be a local storage thought:', thoughtId);
-        // For local storage thoughts being synced, we need to find the corresponding database thought
-        // or create a new one. For now, we'll skip invalid UUIDs.
-        throw new Error('Cannot add local storage thought to favorites. Please sync your data first.');
+        console.log('Thought has invalid UUID, saving to database first:', thoughtId);
+        try {
+          thoughtToFavorite = await saveThought(thought, userId);
+          thoughtId = thoughtToFavorite.id;
+          console.log('Thought saved to database with new ID:', thoughtId);
+        } catch (saveError) {
+          console.error('Failed to save thought to database:', saveError);
+          throw new Error('Failed to save thought to database before favoriting.');
+        }
       }
 
       const favoriteData = {
         user_id: userId,
         thought_id: thoughtId,
-        content: thought.content,
-        topic: thought.topic || null,
-        mood: thought.mood,
-        source: thought.source || 'template',
+        content: thoughtToFavorite.content,
+        topic: thoughtToFavorite.topic || null,
+        mood: thoughtToFavorite.mood,
+        source: thoughtToFavorite.source || 'template',
         created_at: new Date().toISOString()
       };
 
@@ -272,13 +278,13 @@ export async function addToFavorites(thought, userId = null) {
       if (error) {
         // Handle duplicate favorites gracefully
         if (error.code === '23505') {
-          return { ...thought, isFavorite: true }; // Already favorited
+          return { ...thoughtToFavorite, isFavorite: true }; // Already favorited
         }
         throw error;
       }
 
       return {
-        ...thought,
+        ...thoughtToFavorite,
         isFavorite: true
       };
     } else {
