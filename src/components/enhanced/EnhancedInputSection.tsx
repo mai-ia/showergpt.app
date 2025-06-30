@@ -250,42 +250,6 @@ const EnhancedInputSection = memo(function EnhancedInputSection({
             ))}
           </div>
 
-          {/* Traditional Radio Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {moodOptions.map((option) => (
-              <label
-                key={option.value}
-                className={`
-                  relative cursor-pointer p-4 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 text-center
-                  ${mood === option.value
-                    ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 shadow-xl'
-                    : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 shadow-lg hover:shadow-xl'
-                  }
-                `}
-              >
-                <input
-                  type="radio"
-                  name="mood"
-                  value={option.value}
-                  checked={mood === option.value}
-                  onChange={(e) => setMood(e.target.value as any)}
-                  className="sr-only"
-                />
-                <div className="text-2xl mb-2">{option.icon}</div>
-                <div className="font-bold text-slate-800 dark:text-slate-200 text-base mb-1">
-                  {option.label}
-                </div>
-                <div className="text-sm text-slate-600 dark:text-slate-400">
-                  {option.desc}
-                </div>
-                {mood === option.value && (
-                  <div className="absolute top-3 right-3">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  </div>
-                )}
-              </label>
-            ))}
-          </div>
         </div>
 
         {/* Error Display */}
