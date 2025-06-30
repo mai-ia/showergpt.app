@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink, MessageCircle, MoreVertical } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike, incrementThoughtShares } from '../services/thoughtsService';
@@ -6,6 +6,7 @@ import { getCategoryById } from '../data/categories';
 import { useAuth } from '../contexts/AuthContext';
 import ShareableThoughtCard from './ShareableThoughtCard';
 import LiveComments from './realtime/LiveComments';
+import { useToast } from '../components/ui/Toast';
 
 interface ThoughtCardProps {
   thought: ShowerThought;
@@ -23,6 +24,7 @@ const ThoughtCard = memo(function ThoughtCard({
   showAuthor = false 
 }: ThoughtCardProps) {
   const { user } = useAuth();
+  const { success, error: showError } = useToast();
   const [isFavorite, setIsFavorite] = useState(thought.isFavorite || false);
   const [isLiked, setIsLiked] = useState(false);
   const [stats, setStats] = useState({
@@ -46,7 +48,9 @@ const ThoughtCard = memo(function ThoughtCard({
 
   const checkFavoriteStatus = async () => {
     try {
+      console.log('Checking favorite status for thought:', thought.id);
       const favorited = await isThoughtFavorited(thought.id, user?.id);
+      console.log('Favorite status result:', favorited);
       setIsFavorite(favorited);
     } catch (error) {
       console.error('Error checking favorite status:', error);
@@ -55,7 +59,9 @@ const ThoughtCard = memo(function ThoughtCard({
 
   const handleViewIncrement = async () => {
     try {
+      console.log('Incrementing view count for thought:', thought.id);
       const newViews = await incrementThoughtViews(thought.id);
+      console.log('New view count:', newViews);
       setStats(prev => ({ ...prev, views: newViews }));
     } catch (error) {
       console.error('Error incrementing views:', error);
@@ -69,10 +75,18 @@ const ThoughtCard = memo(function ThoughtCard({
     const newFavoriteState = !isFavorite;
     
     try {
-      await onFavoriteChange?.(thought, newFavoriteState);
-      setIsFavorite(newFavoriteState);
+      console.log('Toggling favorite for thought:', thought.id, 'to', newFavoriteState);
+      if (onFavoriteChange) {
+        await onFavoriteChange(thought, newFavoriteState);
+        setIsFavorite(newFavoriteState);
+        success(
+          newFavoriteState ? 'Added to favorites' : 'Removed from favorites',
+          newFavoriteState ? 'This thought has been saved to your favorites.' : 'This thought has been removed from your favorites.'
+        );
+      }
     } catch (error) {
       console.error('Error updating favorite:', error);
+      showError('Failed to update favorite', error.message || 'Please try again.');
     } finally {
       setLoading(false);
     }
@@ -80,11 +94,14 @@ const ThoughtCard = memo(function ThoughtCard({
 
   const handleLike = async () => {
     try {
+      console.log('Toggling like for thought:', thought.id);
       const newLikes = await toggleThoughtLike(thought.id, user?.id);
+      console.log('New like count:', newLikes);
       setStats(prev => ({ ...prev, likes: newLikes }));
       setIsLiked(!isLiked);
     } catch (error) {
       console.error('Error toggling like:', error);
+      showError('Failed to like thought', 'Please try again.');
     }
   };
 
@@ -92,9 +109,11 @@ const ThoughtCard = memo(function ThoughtCard({
     try {
       await navigator.clipboard.writeText(thought.content);
       setCopySuccess(true);
+      success('Copied to clipboard!', 'The thought has been copied to your clipboard.');
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);
+      showError('Failed to copy', 'Unable to copy to clipboard.');
     }
   };
 
@@ -114,6 +133,7 @@ const ThoughtCard = memo(function ThoughtCard({
         setStats(prev => ({ ...prev, shares: newShares }));
         setShareSuccess(true);
         setTimeout(() => setShareSuccess(false), 2000);
+        success('Shared successfully!', 'Thank you for sharing this thought.');
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Error sharing:', error);
@@ -125,13 +145,21 @@ const ThoughtCard = memo(function ThoughtCard({
     }
   };
 
-  const handleRegenerate = () => {
-    onRegenerate?.(thought);
-  };
+  const handleRegenerate = useCallback(() => {
+    if (onRegenerate) {
+      console.log('Regenerating variation for thought:', thought.id);
+      onRegenerate(thought);
+      success('Generating variation...', 'A new variation of this thought is being created.');
+    }
+  }, [thought, onRegenerate]);
 
-  const handleExport = () => {
-    onExport?.(thought);
-  };
+  const handleExport = useCallback(() => {
+    if (onExport) {
+      console.log('Exporting thought:', thought.id);
+      onExport(thought);
+      success('Thought exported!', 'The thought has been downloaded as a text file.');
+    }
+  }, [thought, onExport]);
 
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {

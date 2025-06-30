@@ -1,7 +1,7 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { Heart, Share2, Copy, Clock, Sparkles, RefreshCw, Download, Zap, DollarSign, Eye, ThumbsUp, ExternalLink, MessageCircle, MoreVertical } from 'lucide-react';
 import { ShowerThought } from '../../types';
-import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike } from '../../services/thoughtsService';
+import { isThoughtFavorited, incrementThoughtViews, toggleThoughtLike, incrementThoughtShares } from '../../services/thoughtsService';
 import { getCategoryById } from '../../data/categories';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../ui/Toast';
@@ -49,7 +49,9 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
 
   const checkFavoriteStatus = async () => {
     try {
+      console.log('Checking favorite status for thought:', thought.id);
       const favorited = await isThoughtFavorited(thought.id, user?.id);
+      console.log('Favorite status result:', favorited);
       setIsFavorite(favorited);
     } catch (error) {
       console.error('Error checking favorite status:', error);
@@ -58,7 +60,9 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
 
   const handleViewIncrement = async () => {
     try {
+      console.log('Incrementing view count for thought:', thought.id);
       const newViews = await incrementThoughtViews(thought.id);
+      console.log('New view count:', newViews);
       setStats(prev => ({ ...prev, views: newViews }));
     } catch (error) {
       console.error('Error incrementing views:', error);
@@ -72,15 +76,18 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
     const newFavoriteState = !isFavorite;
     
     try {
-      await onFavoriteChange?.(thought, newFavoriteState);
-      setIsFavorite(newFavoriteState);
-      success(
-        newFavoriteState ? 'Added to favorites' : 'Removed from favorites',
-        newFavoriteState ? 'This thought has been saved to your favorites.' : 'This thought has been removed from your favorites.'
-      );
+      console.log('Toggling favorite for thought:', thought.id, 'to', newFavoriteState);
+      if (onFavoriteChange) {
+        await onFavoriteChange(thought, newFavoriteState);
+        setIsFavorite(newFavoriteState);
+        success(
+          newFavoriteState ? 'Added to favorites' : 'Removed from favorites',
+          newFavoriteState ? 'This thought has been saved to your favorites.' : 'This thought has been removed from your favorites.'
+        );
+      }
     } catch (error) {
       console.error('Error updating favorite:', error);
-      showError('Failed to update favorite', 'Please try again.');
+      showError('Failed to update favorite', error.message || 'Please try again.');
     } finally {
       setLoading(false);
     }
@@ -88,7 +95,9 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
 
   const handleLike = async () => {
     try {
+      console.log('Toggling like for thought:', thought.id);
       const newLikes = await toggleThoughtLike(thought.id, user?.id);
+      console.log('New like count:', newLikes);
       setStats(prev => ({ ...prev, likes: newLikes }));
       setIsLiked(!isLiked);
       
@@ -121,7 +130,10 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
           text: shareText,
           url: window.location.href,
         });
-        setStats(prev => ({ ...prev, shares: prev.shares + 1 }));
+        
+        // Increment shares count
+        const newShares = await incrementThoughtShares(thought.id);
+        setStats(prev => ({ ...prev, shares: newShares }));
         success('Shared successfully!', 'Thank you for sharing this thought.');
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -134,15 +146,21 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
     }
   };
 
-  const handleRegenerate = () => {
-    onRegenerate?.(thought);
-    success('Generating variation...', 'A new variation of this thought is being created.');
-  };
+  const handleRegenerate = useCallback(() => {
+    if (onRegenerate) {
+      console.log('Regenerating variation for thought:', thought.id);
+      onRegenerate(thought);
+      success('Generating variation...', 'A new variation of this thought is being created.');
+    }
+  }, [thought, onRegenerate]);
 
-  const handleExport = () => {
-    onExport?.(thought);
-    success('Thought exported!', 'The thought has been downloaded as a text file.');
-  };
+  const handleExport = useCallback(() => {
+    if (onExport) {
+      console.log('Exporting thought:', thought.id);
+      onExport(thought);
+      success('Thought exported!', 'The thought has been downloaded as a text file.');
+    }
+  }, [thought, onExport]);
 
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -234,19 +252,21 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
       </div>
 
       <div className="flex items-start justify-between mb-6 mt-8">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl" role="img" aria-label={`${thought.mood} mood`}>
-            {moodConfig.icon}
-          </span>
-          <span className={`px-4 py-2 rounded-full text-sm font-bold ${moodConfig.color} shadow-lg`}>
-            {thought.mood}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm bg-slate-50 dark:bg-slate-700 px-3 py-2 rounded-full">
-          <Clock className="w-4 h-4" />
-          <time dateTime={thought.timestamp.toISOString()}>
-            {formatTime(thought.timestamp)}
-          </time>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" role="img" aria-label={`${thought.mood} mood`}>
+              {moodConfig.icon}
+            </span>
+            <span className={`px-4 py-2 rounded-full text-sm font-bold ${moodConfig.color} shadow-lg`}>
+              {thought.mood}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mt-1">
+            <Clock className="w-3 h-3" />
+            <time dateTime={thought.timestamp.toISOString()}>
+              {formatTime(thought.timestamp)}
+            </time>
+          </div>
         </div>
       </div>
 
@@ -430,7 +450,10 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
     prevProps.thought.views === nextProps.thought.views &&
     prevProps.thought.shares === nextProps.thought.shares &&
     prevProps.showAuthor === nextProps.showAuthor &&
-    prevProps.index === nextProps.index
+    prevProps.index === nextProps.index &&
+    prevProps.onFavoriteChange === nextProps.onFavoriteChange &&
+    prevProps.onRegenerate === nextProps.onRegenerate &&
+    prevProps.onExport === nextProps.onExport
   );
 });
 

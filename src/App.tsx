@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip, Zap, Users } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
@@ -140,7 +140,7 @@ function AppContent() {
     }
   };
 
-  const handleGenerate = async (request: GenerationRequest) => {
+  const handleGenerate = useCallback(async (request: GenerationRequest) => {
     setError('');
     
     // Check rate limit for template generation
@@ -185,7 +185,9 @@ function AppContent() {
       
       // Save thought to database/local storage with proper error handling
       try {
+        console.log('Saving new thought:', newThought);
         const savedThought = await saveThought(newThought, user?.id);
+        console.log('Thought saved successfully:', savedThought);
         setThoughts(prev => [savedThought, ...prev]);
         refreshThoughts(); // Refresh cache
       } catch (saveError) {
@@ -206,9 +208,9 @@ function AppContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, refreshThoughts, showError, success]);
 
-  const handleRegenerate = async (originalThought: ShowerThought) => {
+  const handleRegenerate = useCallback(async (originalThought: ShowerThought) => {
     setError('');
     
     // Check if original thought was AI-generated
@@ -251,7 +253,9 @@ function AppContent() {
       
       // Save variation to database/local storage with proper error handling
       try {
+        console.log('Saving variation:', variation);
         const savedVariation = await saveThought(variation, user?.id);
+        console.log('Variation saved successfully:', savedVariation);
         setThoughts(prev => [savedVariation, ...prev]);
         refreshThoughts(); // Refresh cache
       } catch (saveError) {
@@ -272,10 +276,11 @@ function AppContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, refreshThoughts, showError, success]);
 
-  const handleFavoriteToggle = async (thought: ShowerThought, isFavorite: boolean) => {
+  const handleFavoriteToggle = useCallback(async (thought: ShowerThought, isFavorite: boolean) => {
     try {
+      console.log('Toggling favorite:', thought.id, isFavorite);
       if (isFavorite) {
         await addToFavorites(thought, user?.id);
         success('Added to favorites!', 'This thought has been saved to your favorites.');
@@ -289,15 +294,15 @@ function AppContent() {
       console.error('Error toggling favorite:', error);
       showError('Favorite failed', error.message || 'Unable to update favorite status.');
     }
-  };
+  }, [user?.id, refreshThoughts, showError, success]);
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     setThoughts([]);
     refreshThoughts(); // Refresh cache
     success('Thoughts cleared!', 'All thoughts have been removed from view.');
-  };
+  }, [refreshThoughts, success]);
 
-  const handleExportAll = () => {
+  const handleExportAll = useCallback(() => {
     try {
       if (thoughts.length === 0) {
         const errorMsg = 'No thoughts to export. Generate some thoughts first!';
@@ -313,16 +318,16 @@ function AppContent() {
       showError('Export failed', errorMsg);
       console.error('Export error:', err);
     }
-  };
+  }, [thoughts, showError, success]);
 
-  const handleExportSingle = (thought: ShowerThought) => {
+  const handleExportSingle = useCallback((thought: ShowerThought) => {
     try {
       exportThoughts([thought], `shower-thought-${thought.id}`);
     } catch (err) {
       showError('Export failed', 'Unable to export thought.');
       console.error('Export error:', err);
     }
-  };
+  }, [showError]);
 
   const handlePasswordResetSuccess = () => {
     setIsPasswordReset(false);
@@ -640,7 +645,7 @@ function AppContent() {
               <Suspense fallback={<ThoughtsListSkeleton />}>
                 {showInfiniteScroll ? (
                   <LazyInfiniteScrollThoughts
-                    onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                    onFavoriteChange={handleFavoriteToggle}
                     onRegenerate={handleRegenerate}
                     onExport={handleExportSingle}
                   />
@@ -667,7 +672,7 @@ function AppContent() {
                         <EnhancedThoughtCard
                           key={thought.id}
                           thought={thought}
-                          onFavoriteChange={(thought, isFavorite) => handleFavoriteToggle(thought, isFavorite)}
+                          onFavoriteChange={handleFavoriteToggle}
                           onRegenerate={handleRegenerate}
                           onExport={handleExportSingle}
                           index={index}
