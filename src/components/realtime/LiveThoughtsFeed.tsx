@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Users, Eye, TrendingUp } from 'lucide-react';
+import { Zap, Users, Eye, TrendingUp, RefreshCw, AlertTriangle } from 'lucide-react';
 import { ShowerThought } from '../../types';
 import { useRealtime } from '../../hooks/useRealtime';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import ThoughtCard from '../ThoughtCard';
+import { debug } from '../../utils/debugHelpers';
+import Button from '../ui/Button';
 
 interface LiveThoughtsFeedProps {
   onThoughtUpdate?: (thought: ShowerThought) => void;
@@ -15,9 +17,11 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
   const [liveThoughts, setLiveThoughts] = useState<ShowerThought[]>([]);
   const [isLive, setIsLive] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isManuallyLoading, setIsManuallyLoading] = useState(false);
 
   // Subscribe to new public thoughts
-  const { isConnected } = useRealtime({
+  const { isConnected, isLoading } = useRealtime({
     table: 'thoughts',
     filter: 'is_public=eq.true',
     onInsert: (payload) => {
@@ -49,33 +53,10 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
   // Load initial public thoughts
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) return;
-
-    const loadPublicThoughts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('thoughts')
-          .select(`
-            *,
-            profiles!thoughts_user_id_fkey(username, full_name, avatar_url)
-          `)
-          .eq('is_public', true)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (error) throw error;
-
-        const thoughts = (data || []).map(transformThought);
-        setLiveThoughts(thoughts);
-      } catch (error) {
-        console.error('Error loading public thoughts:', error);
-      }
-    };
-
+    
     loadPublicThoughts();
-  }, []);
-
-  // Simulate viewer count (in real app, this would come from presence)
-  useEffect(() => {
+    
+    // Simulate viewer count (in real app, this would come from presence)
     const updateViewerCount = () => {
       setViewerCount(Math.floor(Math.random() * 50) + 10);
     };
@@ -84,6 +65,39 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
     const interval = setInterval(updateViewerCount, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const loadPublicThoughts = async () => {
+    debug.log('LiveThoughtsFeed: Loading public thoughts');
+    setIsManuallyLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error } = await supabase
+        .from('thoughts')
+        .select(`
+          *,
+          profiles!thoughts_user_id_fkey(username, full_name, avatar_url)
+        `)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        debug.error('LiveThoughtsFeed: Error loading public thoughts:', error);
+        setError('Failed to load live thoughts. Please try again.');
+        throw error;
+      }
+
+      debug.log(`LiveThoughtsFeed: Loaded ${data?.length || 0} public thoughts`);
+      const thoughts = (data || []).map(transformThought);
+      setLiveThoughts(thoughts);
+    } catch (error) {
+      debug.error('LiveThoughtsFeed: Error in loadPublicThoughts:', error);
+      setError('Failed to load live thoughts. Please try again.');
+    } finally {
+      setIsManuallyLoading(false);
+    }
+  };
 
   const transformThought = (data: any): ShowerThought => ({
     id: data.id,
@@ -128,6 +142,10 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
     );
   };
 
+  const handleRefresh = () => {
+    loadPublicThoughts();
+  };
+
   if (!isSupabaseConfigured()) {
     return (
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
@@ -162,16 +180,27 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
                 Live Thoughts Feed
               </h2>
               <p className="text-slate-600 dark:text-slate-400">
-                {isConnected ? 'Connected to live updates' : 'Connecting...'}
+                {isConnected ? 'Connected to live updates' : isLoading ? 'Connecting...' : 'Connection failed'}
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-6 text-sm text-slate-600 dark:text-slate-400">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
               <Users className="w-4 h-4" />
               <span>{viewerCount} viewing</span>
             </div>
+            
+            <Button
+              onClick={handleRefresh}
+              disabled={isManuallyLoading}
+              variant="secondary"
+              size="sm"
+              leftIcon={isManuallyLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            >
+              {isManuallyLoading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            
             {isLive && (
               <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                 <TrendingUp className="w-4 h-4" />
@@ -181,6 +210,32 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
           </div>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+            <div>
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <button
+                onClick={handleRefresh}
+                className="mt-2 text-red-600 dark:text-red-400 underline"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {(isLoading || isManuallyLoading) && liveThoughts.length === 0 && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading live thoughts...</p>
+        </div>
+      )}
 
       {/* Live Thoughts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -206,7 +261,7 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
         ))}
       </div>
 
-      {liveThoughts.length === 0 && (
+      {!isLoading && !isManuallyLoading && liveThoughts.length === 0 && (
         <div className="text-center py-12">
           <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-8 max-w-md mx-auto">
             <Eye className="w-12 h-12 text-slate-400 mx-auto mb-4" />

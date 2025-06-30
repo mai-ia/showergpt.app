@@ -112,6 +112,14 @@ function convertTimestampToDate(thought) {
 const requestCache = new Map();
 
 /**
+ * Clear the request cache
+ */
+function clearRequestCache() {
+  debug.log('Clearing request cache');
+  requestCache.clear();
+}
+
+/**
  * Deduplicated request wrapper
  */
 async function deduplicatedRequest(key, requestFn) {
@@ -179,6 +187,9 @@ export async function saveThought(thought, userId = null) {
         likes: data.likes_count || 0,
         shares: data.shares_count || 0
       };
+      
+      // Clear cache to ensure fresh data on next fetch
+      clearRequestCache();
       
       debug.log('Returning saved thought:', result);
       debug.groupEnd();
@@ -259,6 +270,15 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
           variations: []
         }));
         
+        // Check favorite status for each thought
+        for (let i = 0; i < thoughts.length; i++) {
+          try {
+            thoughts[i].isFavorite = await isThoughtFavorited(thoughts[i].id, userId);
+          } catch (error) {
+            debug.warn(`Error checking favorite status for thought ${thoughts[i].id}:`, error);
+          }
+        }
+        
         debug.log('Processed thoughts:', thoughts.length);
         debug.groupEnd();
         return thoughts;
@@ -310,6 +330,9 @@ export async function deleteThought(thoughtId, userId = null) {
       }
       
       debug.log('Thought deleted successfully from database');
+      
+      // Clear cache to ensure fresh data on next fetch
+      clearRequestCache();
     } else {
       // Fallback to local storage
       debug.log('Deleting from local storage');
@@ -390,6 +413,9 @@ export async function addToFavorites(thought, userId = null) {
         isFavorite: true
       };
       
+      // Clear cache to ensure fresh data on next fetch
+      clearRequestCache();
+      
       debug.log('Returning favorited thought:', result);
       debug.groupEnd();
       return result;
@@ -455,6 +481,9 @@ export async function removeFromFavorites(thoughtId, userId = null) {
       }
       
       debug.log('Favorite removed successfully from database');
+      
+      // Clear cache to ensure fresh data on next fetch
+      clearRequestCache();
     } else {
       // Fallback to local storage
       debug.log('Removing from favorites in local storage');
@@ -742,6 +771,9 @@ export async function reorderFavorites(userId, orderedIds) {
       }
       
       debug.log('Favorites reordered successfully');
+      
+      // Clear cache to ensure fresh data on next fetch
+      clearRequestCache();
     } else {
       debug.log('Supabase not configured or user not authenticated, skipping reorder');
     }
@@ -933,6 +965,9 @@ export async function syncLocalDataToDatabase(userId) {
       debug.log('Clearing local favorites storage after successful sync');
       localStorage.removeItem(LOCAL_FAVORITES_KEY);
     }
+    
+    // Clear cache to ensure fresh data on next fetch
+    clearRequestCache();
 
     const result = { thoughts: syncedThoughts, favorites: syncedFavorites };
     debug.log('Sync completed successfully:', result);
@@ -992,5 +1027,6 @@ export default {
   incrementThoughtShares,
   reorderFavorites,
   getUserStats,
-  syncLocalDataToDatabase
+  syncLocalDataToDatabase,
+  clearRequestCache
 };
