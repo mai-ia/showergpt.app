@@ -209,7 +209,7 @@ const ThoughtCard = memo(function ThoughtCard({
                 {thought.mood}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mt-1 ml-10">
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mt-1">
               <Clock className="w-3 h-3" />
               <time dateTime={thought.timestamp.toISOString()}>
                 {formatTime(thought.timestamp)}
