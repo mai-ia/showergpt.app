@@ -216,7 +216,7 @@ export function usePresence(userId?: string) {
         
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Update presence timed out after 60 seconds')), 60000);
+          setTimeout(() => reject(new Error('Update presence timed out after 120 seconds')), 120000);
         });
         
         // Race the actual request against the timeout
