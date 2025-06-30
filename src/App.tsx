@@ -34,6 +34,7 @@ import Button from './components/ui/Button';
 import Card from './components/ui/Card';
 import Tooltip from './components/ui/Tooltip';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import DatabaseDiagnostic from './components/DatabaseDiagnostic';
 
 // Lazy loaded components
 import {
@@ -539,6 +540,9 @@ function AppContent() {
             {/* Environment Warnings */}
             <EnvironmentWarning />
             <SupabaseWarning />
+            
+            {/* Database Diagnostic Component */}
+            <DatabaseDiagnostic />
 
             {/* Live Features */}
             {showLiveFeed && (
