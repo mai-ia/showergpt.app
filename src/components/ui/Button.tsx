@@ -1,4 +1,5 @@
 import React, { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -84,11 +85,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       `}
       {...props}
     >
-      {leftIcon && !loading && (
+      {loading ? (
+        <Loader2 className={`${iconSizes[size]} animate-spin`} />
+      ) : leftIcon ? (
         <span className={iconSizes[size]}>{leftIcon}</span>
-      )}
+      ) : null}
       
-      <span>{children}</span>
+      <span className={loading ? 'opacity-0' : ''}>{children}</span>
       
       {!loading && rightIcon && (
         <span className={iconSizes[size]}>{rightIcon}</span>
