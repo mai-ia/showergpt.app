@@ -34,6 +34,13 @@ import Button from './components/ui/Button';
 import Card from './components/ui/Card';
 import AppContent from './AppContent';
 import Tooltip from './components/ui/Tooltip';
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
             <AppContent />
           </ToastProvider>
         </AuthProvider>
