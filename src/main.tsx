@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './styles/mobile.css';
+import './styles/no-spinners.css'; // Import the no-spinners CSS
 import { initPerformanceMonitoring, addResourceHints } from './utils/performance';
 import { initMobileOptimizations } from './utils/mobileOptimizations';
 

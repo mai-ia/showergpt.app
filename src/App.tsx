@@ -13,6 +13,7 @@ import { initPerformanceMonitoring, measureComponentRender } from './utils/perfo
 import { useCache } from './hooks/useCache';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { checkDatabaseConnection } from './utils/debugHelpers';
+import { disableSpinners } from './utils/disableSpinners';
 
 // UI Components
 import { ToastProvider, useToast } from './components/ui/Toast';
@@ -94,6 +95,12 @@ function AppContent() {
   // Update page title
   useEffect(() => {
     document.title = '🚿 ShowerGPT - Whimsical Shower Thoughts';
+  }, []);
+
+  // Disable all spinners
+  useEffect(() => {
+    const cleanup = disableSpinners();
+    return cleanup;
   }, []);
 
   // Check Supabase connection when auth is configured
@@ -572,20 +579,12 @@ function AppContent() {
             {isLoading && (
               <Card variant="elevated" className="text-center">
                 <div className="flex flex-col items-center gap-6 py-8">
-                  <LoadingSpinner variant="shower" size="xl" />
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
-                      Generating brilliant thoughts...
-                    </h3>
-                    <p className="text-slate-600 dark:text-slate-400">
-                      Let the shower wisdom flow through you
-                    </p>
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+                    Generating brilliant thoughts...
                   </div>
-                  <div className="flex gap-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                  </div>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    Let the shower wisdom flow through you
+                  </p>
                 </div>
               </Card>
             )}
