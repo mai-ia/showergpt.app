@@ -441,13 +441,13 @@ const ThoughtCard = memo(function ThoughtCard({
     </>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison function for optimal memoization
+  // Custom comparison function for better memoization
   return (
     prevProps.thought.id === nextProps.thought.id &&
     prevProps.thought.content === nextProps.thought.content &&
     prevProps.thought.isFavorite === nextProps.thought.isFavorite &&
-    prevProps.thought.views === nextProps.thought.views &&
     prevProps.thought.likes === nextProps.thought.likes &&
+    prevProps.thought.views === nextProps.thought.views &&
     prevProps.thought.shares === nextProps.thought.shares &&
     prevProps.showAuthor === nextProps.showAuthor &&
     prevProps.onFavoriteChange === nextProps.onFavoriteChange &&

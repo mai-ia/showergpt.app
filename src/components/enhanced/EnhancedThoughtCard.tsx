@@ -373,7 +373,7 @@ const EnhancedThoughtCard = memo(function EnhancedThoughtCard({
               size="sm"
               leftIcon={loading ? <LoadingSpinner size="sm" /> : <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />}
             >
-              {loading ? 'Saving...' : isFavorite ? 'Saved' : 'Save'}
+              {loading ? 'Saving...' : ''}
             </Button>
           </Tooltip>
 
