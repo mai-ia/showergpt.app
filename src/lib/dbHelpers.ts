@@ -14,7 +14,7 @@ import { debug } from '../utils/debugHelpers';
  */
 async function executeWithTimeout<T>(
   queryPromise: Promise<T>, 
-  timeoutMs: number = 30000, 
+  timeoutMs: number = 120000, 
   errorMessage: string = 'Database query timed out'
 ): Promise<T> {
   // Create a promise that rejects after the timeout
@@ -49,8 +49,8 @@ export async function getUserProfile(userId: string) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      50000,
-      `Profile fetch for user ${userId} timed out after 50 seconds`
+      180000,
+      `Profile fetch for user ${userId} timed out after 180 seconds`
     );
     
     if (error && error.code !== 'PGRST116') {
@@ -98,8 +98,8 @@ export async function updateUserProfile(userId: string, profileData: any) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      40000,
-      `Profile update for user ${userId} timed out after 40 seconds`
+      150000,
+      `Profile update for user ${userId} timed out after 150 seconds`
     );
     
     if (error) {
@@ -143,8 +143,8 @@ export async function getUserThoughts(userId: string, limit = 50, offset = 0) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      40000,
-      `Thoughts fetch for user ${userId} timed out after 40 seconds`
+      150000,
+      `Thoughts fetch for user ${userId} timed out after 150 seconds`
     );
 
     if (error) {
@@ -188,8 +188,8 @@ export async function getUserFavorites(userId: string, limit = 50) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      30000,
-      `Favorites fetch for user ${userId} timed out after 30 seconds`
+      120000,
+      `Favorites fetch for user ${userId} timed out after 120 seconds`
     );
     
     if (error) {
@@ -230,8 +230,8 @@ export async function getCategories() {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      20000,
-      'Categories fetch timed out after 20 seconds'
+      90000,
+      'Categories fetch timed out after 90 seconds'
     );
     
     if (error) {
@@ -276,8 +276,8 @@ export async function getComments(thoughtId: string) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      20000,
-      `Comments fetch for thought ${thoughtId} timed out after 20 seconds`
+      90000,
+      `Comments fetch for thought ${thoughtId} timed out after 90 seconds`
     );
     
     if (error) {
@@ -326,8 +326,8 @@ export async function addComment(thoughtId: string, userId: string, content: str
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      30000,
-      `Comment creation for thought ${thoughtId} timed out after 30 seconds`
+      120000,
+      `Comment creation for thought ${thoughtId} timed out after 120 seconds`
     );
     
     if (error) {
@@ -378,8 +378,8 @@ export async function createNotification(userId: string, type: string, title: st
     
     const { data: notificationData, error } = await executeWithTimeout(
       queryPromise,
-      20000,
-      `Notification creation for user ${userId} timed out after 20 seconds`
+      90000,
+      `Notification creation for user ${userId} timed out after 90 seconds`
     );
     
     if (error) {
