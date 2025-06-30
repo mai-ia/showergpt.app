@@ -1,5 +1,5 @@
 import { ShowerThought } from '../types';
-import { saveThought, getUserThoughts, addToFavorites, removeFromFavorites, getUserFavorites, deleteThought } from '../services/thoughtsService';
+import { debug } from './debugHelpers';
 
 const STORAGE_KEY = 'showergpt-saved-thoughts';
 const HISTORY_KEY = 'showergpt-history';
@@ -65,69 +65,51 @@ export function getThoughtHistory(): ShowerThought[] {
 
 export function addToHistory(thought: ShowerThought): void {
   try {
+    debug.log(`Adding thought to history: ${thought.id}`);
     const history = getThoughtHistory();
+    
+    // Check if thought already exists in history
+    const existingIndex = history.findIndex(t => t.id === thought.id);
+    if (existingIndex !== -1) {
+      debug.log(`Thought already exists in history, removing old entry: ${thought.id}`);
+      history.splice(existingIndex, 1);
+    }
+    
     const updated = [thought, ...history.slice(0, 49)]; // Keep last 50 thoughts
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    debug.log(`Thought added to history, new history size: ${updated.length}`);
   } catch (error) {
-    console.error('Error adding to history:', error);
+    debug.error('Error adding to history:', error);
   }
 }
 
 export function clearHistory(): void {
   try {
+    debug.log('Clearing thought history');
     localStorage.removeItem(HISTORY_KEY);
   } catch (error) {
-    console.error('Error clearing history:', error);
+    debug.error('Error clearing history:', error);
   }
 }
 
-// Favorites management - Updated to use new service
+// Favorites management
 export function getFavorites(): ShowerThought[] {
   try {
+    debug.log('Getting favorites from local storage');
     const favorites = localStorage.getItem(FAVORITES_KEY);
     const thoughts = favorites ? JSON.parse(favorites) : [];
+    debug.log(`Found ${thoughts.length} favorites in local storage`);
     return thoughts.map(convertTimestampToDate);
   } catch (error) {
-    console.error('Error loading favorites:', error);
+    debug.error('Error loading favorites:', error);
     return [];
-  }
-}
-
-export async function addToFavorites(thought: ShowerThought, userId?: string): Promise<void> {
-  try {
-    if (userId) {
-      await addToFavorites(thought, userId);
-    } else {
-      // Fallback to local storage
-      const favorites = getFavorites();
-      const updated = [...favorites, { ...thought, isFavorite: true }];
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
-    }
-  } catch (error) {
-    console.error('Error adding to favorites:', error);
-    throw error;
-  }
-}
-
-export async function removeFromFavorites(thoughtId: string, userId?: string): Promise<void> {
-  try {
-    if (userId) {
-      await removeFromFavorites(thoughtId, userId);
-    } else {
-      // Fallback to local storage
-      const favorites = getFavorites();
-      const updated = favorites.filter(thought => thought.id !== thoughtId);
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
-    }
-  } catch (error) {
-    console.error('Error removing from favorites:', error);
-    throw error;
   }
 }
 
 // Export functionality
 export function exportThoughts(thoughts: ShowerThought[], filename: string = 'shower-thoughts'): void {
   try {
+    debug.log(`Exporting ${thoughts.length} thoughts to file: ${filename}`);
     const content = thoughts.map(thought => {
       const date = new Date(thought.timestamp).toLocaleDateString();
       const time = new Date(thought.timestamp).toLocaleTimeString();
@@ -143,8 +125,9 @@ export function exportThoughts(thoughts: ShowerThought[], filename: string = 'sh
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    debug.log('Export completed successfully');
   } catch (error) {
-    console.error('Error exporting thoughts:', error);
+    debug.error('Error exporting thoughts:', error);
     throw new Error('Failed to export thoughts');
   }
 }

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { debug } from '../utils/debugHelpers';
 
 // Supabase configuration
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -9,121 +10,320 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ Supabase configuration missing. Authentication features will be disabled.');
 }
 
-// Create Supabase client
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+// Create a single Supabase client instance
+let supabaseInstance = null;
+
+// Initialize Supabase client
+const initSupabase = () => {
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+
+  try {
+    debug.log('Initializing Supabase client');
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true
       }
-    })
-  : null;
+    });
+    debug.log('Supabase client initialized successfully');
+    return supabaseInstance;
+  } catch (error) {
+    debug.error('Error initializing Supabase client:', error);
+    return null;
+  }
+};
+
+// Get the Supabase client instance
+export const supabase = initSupabase();
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
-  return supabase !== null;
+  return supabaseUrl && supabaseAnonKey && supabase !== null;
 };
 
 // Auth helper functions
 export const authHelpers = {
   // Sign up with email and password
   async signUp(email, password, userData = {}) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.signUp');
+    debug.log('Signing up user:', email);
     
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: userData
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: userData
+        }
+      });
+      
+      if (error) {
+        debug.error('Sign up error:', error);
+        debug.groupEnd();
+        throw error;
       }
-    });
-    
-    if (error) throw error;
-    return data;
+      
+      debug.log('Sign up successful:', data.user?.id);
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Sign up error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Sign in with email and password
   async signIn(email, password) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.signIn');
+    debug.log('Signing in user:', email);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        debug.error('Sign in error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Sign in successful:', data.user?.id);
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Sign in error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Sign out
   async signOut() {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.signOut');
     
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
+    
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        debug.error('Sign out error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Sign out successful');
+      debug.groupEnd();
+    } catch (error) {
+      debug.error('Sign out error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Get current session
   async getSession() {
-    if (!supabase) return null;
+    debug.group('authHelpers.getSession');
     
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return session;
+    if (!supabase) {
+      debug.log('Supabase not configured, returning null session');
+      debug.groupEnd();
+      return null;
+    }
+    
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        debug.error('Get session error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Got session:', session?.user?.id || 'No active session');
+      debug.groupEnd();
+      return session;
+    } catch (error) {
+      debug.error('Get session error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Get current user
   async getUser() {
-    if (!supabase) return null;
+    debug.group('authHelpers.getUser');
     
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
+    if (!supabase) {
+      debug.log('Supabase not configured, returning null user');
+      debug.groupEnd();
+      return null;
+    }
+    
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        debug.error('Get user error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Got user:', user?.id || 'No user found');
+      debug.groupEnd();
+      return user;
+    } catch (error) {
+      debug.error('Get user error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Update user profile
   async updateProfile(updates) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.updateProfile');
+    debug.log('Updating user profile');
     
-    const { data, error } = await supabase.auth.updateUser({
-      data: updates
-    });
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: updates
+      });
+      
+      if (error) {
+        debug.error('Update profile error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Profile updated successfully');
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Update profile error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Update password
   async updatePassword(newPassword) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.updatePassword');
+    debug.log('Updating password');
     
-    const { data, error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        debug.error('Update password error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Password updated successfully');
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Update password error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Reset password
   async resetPassword(email) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.resetPassword');
+    debug.log('Sending password reset email to:', email);
     
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
-    });
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      
+      if (error) {
+        debug.error('Reset password error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Password reset email sent successfully');
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Reset password error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Delete account
   async deleteAccount() {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('authHelpers.deleteAccount');
+    debug.log('Deleting user account');
     
-    const { error } = await supabase.auth.admin.deleteUser();
-    if (error) throw error;
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
+    
+    try {
+      const { error } = await supabase.auth.admin.deleteUser();
+      if (error) {
+        debug.error('Delete account error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Account deleted successfully');
+      debug.groupEnd();
+    } catch (error) {
+      debug.error('Delete account error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   }
 };
 
@@ -131,83 +331,184 @@ export const authHelpers = {
 export const dbHelpers = {
   // Save user's shower thought to database
   async saveThought(thought, userId) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('dbHelpers.saveThought');
+    debug.log('Saving thought:', thought.id);
     
-    const { data, error } = await supabase
-      .from('shower_thoughts')
-      .insert([{
-        ...thought,
-        user_id: userId,
-        created_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('shower_thoughts')
+        .insert([{
+          ...thought,
+          user_id: userId,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        debug.error('Save thought error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Thought saved successfully:', data.id);
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Save thought error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Get user's shower thoughts
   async getUserThoughts(userId, limit = 50) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('dbHelpers.getUserThoughts');
+    debug.log('Getting user thoughts:', userId);
     
-    const { data, error } = await supabase
-      .from('shower_thoughts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data || [];
+    try {
+      const { data, error } = await supabase
+        .from('shower_thoughts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (error) {
+        debug.error('Get user thoughts error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log(`Got ${data?.length || 0} user thoughts`);
+      debug.groupEnd();
+      return data || [];
+    } catch (error) {
+      debug.error('Get user thoughts error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Update user profile in database
   async updateUserProfile(userId, profileData) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('dbHelpers.updateUserProfile');
+    debug.log('Updating user profile:', userId);
     
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .upsert([{
-        user_id: userId,
-        ...profileData,
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .upsert([{
+          id: userId,
+          ...profileData,
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        debug.error('Update user profile error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('User profile updated successfully');
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Update user profile error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Get user profile from database
   async getUserProfile(userId) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('dbHelpers.getUserProfile');
+    debug.log('Getting user profile:', userId);
     
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    if (error && error.code !== 'PGRST116') throw error; // Ignore "not found" errors
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        // Ignore "not found" errors
+        debug.error('Get user profile error:', error);
+        debug.groupEnd();
+        throw error;
+      }
+      
+      debug.log('Got user profile:', data?.id || 'Not found');
+      debug.groupEnd();
+      return data;
+    } catch (error) {
+      debug.error('Get user profile error:', error);
+      debug.groupEnd();
+      throw error;
+    }
   },
 
   // Delete user profile and all related data
   async deleteUserData(userId) {
-    if (!supabase) throw new Error('Supabase not configured');
+    debug.group('dbHelpers.deleteUserData');
+    debug.log('Deleting user data:', userId);
     
-    // Delete in order due to foreign key constraints
-    const operations = [
-      supabase.from('user_favorites').delete().eq('user_id', userId),
-      supabase.from('shower_thoughts').delete().eq('user_id', userId),
-      supabase.from('user_profiles').delete().eq('user_id', userId)
-    ];
+    if (!supabase) {
+      debug.error('Supabase not configured');
+      debug.groupEnd();
+      throw new Error('Supabase not configured');
+    }
     
-    for (const operation of operations) {
-      const { error } = await operation;
-      if (error) throw error;
+    try {
+      // Delete in order due to foreign key constraints
+      const operations = [
+        supabase.from('user_favorites').delete().eq('user_id', userId),
+        supabase.from('shower_thoughts').delete().eq('user_id', userId),
+        supabase.from('user_profiles').delete().eq('id', userId)
+      ];
+      
+      for (const operation of operations) {
+        const { error } = await operation;
+        if (error) {
+          debug.error('Delete user data error:', error);
+          debug.groupEnd();
+          throw error;
+        }
+      }
+      
+      debug.log('User data deleted successfully');
+      debug.groupEnd();
+    } catch (error) {
+      debug.error('Delete user data error:', error);
+      debug.groupEnd();
+      throw error;
     }
   }
 };

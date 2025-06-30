@@ -150,51 +150,6 @@ export function inspectLocalStorage(key?: string): void {
   debug.groupEnd();
 }
 
-// Function to monitor network requests
-export function monitorNetworkRequests(): void {
-  if (!DEBUG_MODE || typeof window === 'undefined') return;
-  
-  const originalFetch = window.fetch;
-  
-  window.fetch = async function(input, init) {
-    const url = typeof input === 'string' ? input : input.url;
-    const method = init?.method || (typeof input === 'string' ? 'GET' : input.method) || 'GET';
-    
-    debug.group(`Fetch Request: ${method} ${url}`);
-    debug.log('Request details:', { url, method, headers: init?.headers, body: init?.body });
-    
-    try {
-      const response = await originalFetch.apply(this, [input, init]);
-      
-      // Clone the response to avoid consuming it
-      const clonedResponse = response.clone();
-      
-      try {
-        const contentType = clonedResponse.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await clonedResponse.json();
-          debug.log('Response data:', data);
-        } else {
-          debug.log('Response is not JSON. Content-Type:', contentType);
-        }
-      } catch (err) {
-        debug.warn('Could not parse response as JSON', err);
-      }
-      
-      debug.log('Response status:', response.status, response.statusText);
-      debug.groupEnd();
-      
-      return response;
-    } catch (error) {
-      debug.error('Fetch error:', error);
-      debug.groupEnd();
-      throw error;
-    }
-  };
-  
-  debug.info('Network request monitoring enabled');
-}
-
 // Function to check database connection
 export async function checkDatabaseConnection(supabase: any): Promise<boolean> {
   if (!supabase) {
@@ -254,7 +209,6 @@ export default {
   inspectObject,
   isValidUUID,
   inspectLocalStorage,
-  monitorNetworkRequests,
   checkDatabaseConnection,
   clearAppData
 };

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, authHelpers, dbHelpers, isSupabaseConfigured } from '../lib/supabase';
+import { debug } from '../utils/debugHelpers';
 
 interface AuthContextType {
   user: User | null;
@@ -41,34 +42,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load user profile from database
   const loadUserProfile = async (userId: string) => {
     try {
+      debug.log(`Loading user profile for user: ${userId}`);
       const profile = await dbHelpers.getUserProfile(userId);
       setUserProfile(profile);
+      debug.log(`User profile loaded: ${profile ? 'success' : 'not found'}`);
+      return profile;
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      debug.error('Error loading user profile:', error);
+      return null;
     }
   };
 
   // Refresh user profile
   const refreshProfile = async () => {
     if (user) {
+      debug.log(`Refreshing profile for user: ${user.id}`);
       await loadUserProfile(user.id);
     }
   };
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
+      debug.warn('Supabase not configured, skipping auth initialization');
       setLoading(false);
       return;
     }
 
+    debug.log('Initializing auth context');
+
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase!.auth.getSession();
+        debug.log('Getting initial session');
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
+          debug.error('Error getting session:', error);
         } else {
+          debug.log(`Session found: ${session ? 'yes' : 'no'}`);
           setSession(session);
           setUser(session?.user ?? null);
           
@@ -77,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error in getInitialSession:', error);
+        debug.error('Error in getInitialSession:', error);
       } finally {
         setLoading(false);
       }
@@ -86,9 +97,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     getInitialSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase!.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        debug.log(`Auth state changed: ${event}, user: ${session?.user?.email || 'none'}`);
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -103,91 +114,107 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      debug.log('Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, userData = {}) => {
+    debug.log(`Signing up user: ${email}`);
     try {
       const result = await authHelpers.signUp(email, password, userData);
       
       // Create user profile in database
       if (result.user) {
         try {
+          debug.log(`Creating profile for new user: ${result.user.id}`);
           await dbHelpers.updateUserProfile(result.user.id, {
             email: result.user.email,
             display_name: userData.display_name || email.split('@')[0],
             ...userData
           });
+          debug.log('User profile created successfully');
         } catch (profileError) {
-          console.error('Error creating user profile:', profileError);
+          debug.error('Error creating user profile:', profileError);
           // Don't throw here - user is created, profile creation can be retried
         }
       }
       
       return result;
     } catch (error) {
-      console.error('Sign up error:', error);
+      debug.error('Sign up error:', error);
       throw error;
     }
   };
 
   const signIn = async (email: string, password: string) => {
+    debug.log(`Signing in user: ${email}`);
     try {
       return await authHelpers.signIn(email, password);
     } catch (error) {
-      console.error('Sign in error:', error);
+      debug.error('Sign in error:', error);
       throw error;
     }
   };
 
   const signOut = async () => {
+    debug.log('Signing out user');
     try {
       await authHelpers.signOut();
     } catch (error) {
-      console.error('Sign out error:', error);
+      debug.error('Sign out error:', error);
       throw error;
     }
   };
 
   const updateProfile = async (updates: any) => {
+    debug.log('Updating user profile');
     try {
       // Update auth profile
       const result = await authHelpers.updateProfile(updates);
       
       // Update database profile
       if (user) {
+        debug.log(`Updating database profile for user: ${user.id}`);
         await dbHelpers.updateUserProfile(user.id, updates);
         await refreshProfile();
       }
       
       return result;
     } catch (error) {
-      console.error('Update profile error:', error);
+      debug.error('Update profile error:', error);
       throw error;
     }
   };
 
   const updatePassword = async (newPassword: string) => {
+    debug.log('Updating user password');
     try {
       return await authHelpers.updatePassword(newPassword);
     } catch (error) {
-      console.error('Update password error:', error);
+      debug.error('Update password error:', error);
       throw error;
     }
   };
 
   const resetPassword = async (email: string) => {
+    debug.log(`Sending password reset email to: ${email}`);
     try {
       return await authHelpers.resetPassword(email);
     } catch (error) {
-      console.error('Reset password error:', error);
+      debug.error('Reset password error:', error);
       throw error;
     }
   };
 
   const deleteAccount = async () => {
+    debug.log('Deleting user account');
     try {
-      if (!user) throw new Error('No user logged in');
+      if (!user) {
+        debug.error('No user logged in');
+        throw new Error('No user logged in');
+      }
       
       // Delete user account (this will cascade delete all related data due to foreign key constraints)
       await authHelpers.deleteAccount();
@@ -196,8 +223,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       setSession(null);
       setUserProfile(null);
+      
+      debug.log('Account deleted successfully');
     } catch (error) {
-      console.error('Delete account error:', error);
+      debug.error('Delete account error:', error);
       throw error;
     }
   };
