@@ -216,7 +216,7 @@ export function usePresence(userId?: string) {
         
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Update presence timed out after 5 seconds')), 5000);
+          setTimeout(() => reject(new Error('Update presence timed out after 10 seconds')), 10000);
         });
         
         // Race the actual request against the timeout
@@ -362,17 +362,17 @@ export function useLiveNotifications(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Notifications loading timed out after 18 seconds');
+        debug.warn('Notifications loading timed out after 23 seconds');
         setIsLoading(false);
-        setError(new Error('Notifications loading timed out after 18 seconds'));
+        setError(new Error('Notifications loading timed out after 23 seconds'));
       }
-    }, 18000);
+    }, 23000);
 
     const loadNotifications = async () => {
       try {
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Notifications fetch timed out after 15 seconds')), 15000);
+          setTimeout(() => reject(new Error('Notifications fetch timed out after 20 seconds')), 20000);
         });
         
         // Race the actual request against the timeout
@@ -421,7 +421,7 @@ export function useLiveNotifications(userId?: string) {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Mark as read timed out after 5 seconds')), 5000);
+        setTimeout(() => reject(new Error('Mark as read timed out after 10 seconds')), 10000);
       });
       
       // Race the actual request against the timeout
@@ -448,7 +448,7 @@ export function useLiveNotifications(userId?: string) {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Mark all as read timed out after 5 seconds')), 5000);
+        setTimeout(() => reject(new Error('Mark all as read timed out after 10 seconds')), 10000);
       });
       
       // Race the actual request against the timeout
