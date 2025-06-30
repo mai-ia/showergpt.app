@@ -131,5 +131,3 @@ export function exportThoughts(thoughts: ShowerThought[], filename: string = 'sh
     throw new Error('Failed to export thoughts');
   }
 }
-
-export { addToHistory, getThoughtHistory, exportThoughts }
