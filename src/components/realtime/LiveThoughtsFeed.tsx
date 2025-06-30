@@ -19,9 +19,10 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
   const [viewerCount, setViewerCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isManuallyLoading, setIsManuallyLoading] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState(false);
 
   // Subscribe to new public thoughts
-  const { isConnected, isLoading } = useRealtime({
+  const { isConnected, isLoading, error: realtimeError, retryConnection } = useRealtime({
     table: 'thoughts',
     filter: 'is_public=eq.true',
     onInsert: (payload) => {
@@ -40,6 +41,23 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
       onThoughtUpdate?.(updatedThought);
     }
   });
+
+  // Set a timeout for the connecting state
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isLoading && !isConnected) {
+      timeoutId = setTimeout(() => {
+        setConnectionTimeout(true);
+      }, 8000); // Show timeout message after 8 seconds
+    } else {
+      setConnectionTimeout(false);
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isLoading, isConnected]);
 
   // Subscribe to interaction updates
   useRealtime({
@@ -72,15 +90,26 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
     setError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('thoughts')
-        .select(`
-          *,
-          profiles!thoughts_user_id_fkey(username, full_name, avatar_url)
-        `)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Public thoughts fetch timed out after 8 seconds')), 8000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase
+          .from('thoughts')
+          .select(`
+            *,
+            profiles!thoughts_user_id_fkey(username, full_name, avatar_url)
+          `)
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
 
       if (error) {
         debug.error('LiveThoughtsFeed: Error loading public thoughts:', error);
@@ -144,6 +173,9 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
 
   const handleRefresh = () => {
     loadPublicThoughts();
+    if (!isConnected && !isLoading) {
+      retryConnection();
+    }
   };
 
   if (!isSupabaseConfigured()) {
@@ -180,7 +212,9 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
                 Live Thoughts Feed
               </h2>
               <p className="text-slate-600 dark:text-slate-400">
-                {isConnected ? 'Connected to live updates' : isLoading ? 'Connecting...' : 'Connection failed'}
+                {isConnected ? 'Connected to live updates' : 
+                 isLoading ? 'Connecting...' : 
+                 'Connection failed'}
               </p>
             </div>
           </div>
@@ -211,16 +245,44 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
         </div>
       </div>
 
+      {/* Connection Timeout Message */}
+      {connectionTimeout && (
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-yellow-700 dark:text-yellow-300 mb-1">
+                Connection Taking Longer Than Expected
+              </h3>
+              <p className="text-yellow-600 dark:text-yellow-400 text-sm">
+                The live connection is taking longer than expected. This could be due to network issues or database connectivity problems.
+              </p>
+              <button
+                onClick={handleRefresh}
+                className="mt-2 px-4 py-2 bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-700 transition-colors"
+              >
+                Retry Connection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Message */}
-      {error && (
+      {(error || realtimeError) && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
             <div>
-              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <h3 className="font-semibold text-red-700 dark:text-red-300 mb-1">
+                Connection Error
+              </h3>
+              <p className="text-red-600 dark:text-red-400 text-sm">
+                {error || realtimeError?.message || 'Failed to connect to live feed'}
+              </p>
               <button
                 onClick={handleRefresh}
-                className="mt-2 text-red-600 dark:text-red-400 underline"
+                className="mt-2 px-4 py-2 bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
               >
                 Try Again
               </button>

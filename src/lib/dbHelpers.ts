@@ -10,6 +10,23 @@ import { debug } from '../utils/debugHelpers';
  */
 
 /**
+ * Execute a database query with timeout
+ */
+async function executeWithTimeout<T>(
+  queryPromise: Promise<T>, 
+  timeoutMs: number = 5000, 
+  errorMessage: string = 'Database query timed out'
+): Promise<T> {
+  // Create a promise that rejects after the timeout
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+  });
+  
+  // Race the actual query against the timeout
+  return Promise.race([queryPromise, timeoutPromise]);
+}
+
+/**
  * Get a user profile by ID
  */
 export async function getUserProfile(userId: string) {
@@ -24,11 +41,17 @@ export async function getUserProfile(userId: string) {
   try {
     debug.log(`Fetching user profile for user: ${userId}`);
     
-    // Use the mapped table name
-    const { data, error } = await table('user_profiles')
+    // Use the mapped table name with timeout
+    const queryPromise = table('user_profiles')
       .select('*')
       .eq('id', userId)
       .single();
+    
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      5000,
+      `Profile fetch for user ${userId} timed out after 5 seconds`
+    );
     
     if (error && error.code !== 'PGRST116') {
       // Ignore "not found" errors
@@ -63,8 +86,8 @@ export async function updateUserProfile(userId: string, profileData: any) {
     debug.log(`Updating user profile for user: ${userId}`);
     debug.log('Profile data:', profileData);
     
-    // Use the mapped table name
-    const { data, error } = await table('user_profiles')
+    // Use the mapped table name with timeout
+    const queryPromise = table('user_profiles')
       .upsert({
         id: userId,
         ...profileData,
@@ -72,6 +95,12 @@ export async function updateUserProfile(userId: string, profileData: any) {
       })
       .select()
       .single();
+    
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      8000,
+      `Profile update for user ${userId} timed out after 8 seconds`
+    );
     
     if (error) {
       debug.error('Error updating user profile:', error);
@@ -105,20 +134,26 @@ export async function getUserThoughts(userId: string, limit = 50, offset = 0) {
     debug.log(`Fetching thoughts for user: ${userId}`);
     debug.log(`Limit: ${limit}, Offset: ${offset}`);
     
-    // Use the mapped table name
-    const { data, error } = await table('shower_thoughts')
+    // Use the mapped table name with timeout
+    const queryPromise = table('shower_thoughts')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
     
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      8000,
+      `Thoughts fetch for user ${userId} timed out after 8 seconds`
+    );
+
     if (error) {
-      debug.error('Error fetching user thoughts:', error);
+      debug.error('Supabase error getting thoughts:', error);
       debug.groupEnd();
       throw error;
     }
-    
-    debug.log(`Fetched ${data?.length || 0} thoughts`);
+
+    debug.log(`Fetched ${data?.length || 0} thoughts from database`);
     debug.groupEnd();
     return data || [];
   } catch (error) {
@@ -144,12 +179,18 @@ export async function getUserFavorites(userId: string, limit = 50) {
     debug.log(`Fetching favorites for user: ${userId}`);
     debug.log(`Limit: ${limit}`);
     
-    // Use the mapped table name
-    const { data, error } = await table('user_favorites')
+    // Use the mapped table name with timeout
+    const queryPromise = table('user_favorites')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
+    
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      8000,
+      `Favorites fetch for user ${userId} timed out after 8 seconds`
+    );
     
     if (error) {
       debug.error('Error fetching user favorites:', error);
@@ -182,10 +223,16 @@ export async function getCategories() {
   try {
     debug.log('Fetching categories');
     
-    // Use the mapped table name
-    const { data, error } = await table('categories')
+    // Use the mapped table name with timeout
+    const queryPromise = table('categories')
       .select('*')
       .order('name');
+    
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      5000,
+      'Categories fetch timed out after 5 seconds'
+    );
     
     if (error) {
       debug.error('Error fetching categories:', error);
@@ -218,14 +265,20 @@ export async function getComments(thoughtId: string) {
   try {
     debug.log(`Fetching comments for thought: ${thoughtId}`);
     
-    // Use the mapped table name
-    const { data, error } = await table('comments')
+    // Use the mapped table name with timeout
+    const queryPromise = table('comments')
       .select(`
         *,
         profiles!comments_user_id_fkey(username, full_name, avatar_url)
       `)
       .eq('thought_id', thoughtId)
       .order('created_at', { ascending: false });
+    
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      5000,
+      `Comments fetch for thought ${thoughtId} timed out after 5 seconds`
+    );
     
     if (error) {
       debug.error('Error fetching comments:', error);
@@ -259,8 +312,8 @@ export async function addComment(thoughtId: string, userId: string, content: str
     debug.log(`Adding comment for thought: ${thoughtId}`);
     debug.log(`User: ${userId}, Content: ${content}`);
     
-    // Use the mapped table name
-    const { data, error } = await table('comments')
+    // Use the mapped table name with timeout
+    const queryPromise = table('comments')
       .insert({
         thought_id: thoughtId,
         user_id: userId,
@@ -270,6 +323,12 @@ export async function addComment(thoughtId: string, userId: string, content: str
       })
       .select()
       .single();
+    
+    const { data, error } = await executeWithTimeout(
+      queryPromise,
+      8000,
+      `Comment creation for thought ${thoughtId} timed out after 8 seconds`
+    );
     
     if (error) {
       debug.error('Error adding comment:', error);
@@ -303,8 +362,8 @@ export async function createNotification(userId: string, type: string, title: st
     debug.log(`Creating notification for user: ${userId}`);
     debug.log(`Type: ${type}, Title: ${title}`);
     
-    // Use the mapped table name
-    const { data: notificationData, error } = await table('notifications')
+    // Use the mapped table name with timeout
+    const queryPromise = table('notifications')
       .insert({
         user_id: userId,
         type,
@@ -316,6 +375,12 @@ export async function createNotification(userId: string, type: string, title: st
       })
       .select()
       .single();
+    
+    const { data: notificationData, error } = await executeWithTimeout(
+      queryPromise,
+      5000,
+      `Notification creation for user ${userId} timed out after 5 seconds`
+    );
     
     if (error) {
       debug.error('Error creating notification:', error);

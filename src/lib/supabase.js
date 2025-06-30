@@ -38,6 +38,10 @@ const initSupabase = () => {
         headers: {
           'x-client-info': 'showergpt-web'
         }
+      },
+      // Add default timeout for all requests
+      realtime: {
+        timeout: 10000 // 10 seconds
       }
     });
     debug.log('Supabase client initialized successfully');
@@ -70,13 +74,24 @@ export const authHelpers = {
     }
     
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: userData
-        }
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Sign up request timed out after 10 seconds')), 10000);
       });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: userData
+          }
+        }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Sign up error:', error);
@@ -106,10 +121,21 @@ export const authHelpers = {
     }
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Sign in request timed out after 10 seconds')), 10000);
       });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email,
+          password
+        }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Sign in error:', error);
@@ -138,7 +164,19 @@ export const authHelpers = {
     }
     
     try {
-      const { error } = await supabase.auth.signOut();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Sign out request timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.signOut(),
+        timeoutPromise
+      ]);
+      
+      const { error } = result;
+      
       if (error) {
         debug.error('Sign out error:', error);
         debug.groupEnd();
@@ -165,7 +203,19 @@ export const authHelpers = {
     }
     
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Get session request timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.getSession(),
+        timeoutPromise
+      ]);
+      
+      const { data: { session }, error } = result;
+      
       if (error) {
         debug.error('Get session error:', error);
         debug.groupEnd();
@@ -193,7 +243,19 @@ export const authHelpers = {
     }
     
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Get user request timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.getUser(),
+        timeoutPromise
+      ]);
+      
+      const { data: { user }, error } = result;
+      
       if (error) {
         debug.error('Get user error:', error);
         debug.groupEnd();
@@ -222,9 +284,20 @@ export const authHelpers = {
     }
     
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: updates
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Update profile request timed out after 8 seconds')), 8000);
       });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.updateUser({
+          data: updates
+        }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Update profile error:', error);
@@ -254,9 +327,20 @@ export const authHelpers = {
     }
     
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        password: newPassword
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Update password request timed out after 8 seconds')), 8000);
       });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.updateUser({
+          password: newPassword
+        }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Update password error:', error);
@@ -286,9 +370,20 @@ export const authHelpers = {
     }
     
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Reset password request timed out after 8 seconds')), 8000);
       });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`
+        }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Reset password error:', error);
@@ -318,7 +413,19 @@ export const authHelpers = {
     }
     
     try {
-      const { error } = await supabase.auth.admin.deleteUser();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Delete account request timed out after 10 seconds')), 10000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.auth.admin.deleteUser(),
+        timeoutPromise
+      ]);
+      
+      const { error } = result;
+      
       if (error) {
         debug.error('Delete account error:', error);
         debug.groupEnd();
@@ -349,15 +456,26 @@ export const dbHelpers = {
     }
     
     try {
-      const { data, error } = await supabase
-        .from('shower_thoughts')
-        .insert([{
-          ...thought,
-          user_id: userId,
-          created_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Save thought request timed out after 8 seconds')), 8000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase
+          .from('shower_thoughts')
+          .insert([{
+            ...thought,
+            user_id: userId,
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single(),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Save thought error:', error);
@@ -387,12 +505,23 @@ export const dbHelpers = {
     }
     
     try {
-      const { data, error } = await supabase
-        .from('shower_thoughts')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Get user thoughts request timed out after 8 seconds')), 8000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase
+          .from('shower_thoughts')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(limit),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Get user thoughts error:', error);
@@ -422,15 +551,26 @@ export const dbHelpers = {
     }
     
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .upsert([{
-          id: userId,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Update user profile request timed out after 8 seconds')), 8000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase
+          .from('user_profiles')
+          .upsert([{
+            id: userId,
+            ...profileData,
+            updated_at: new Date().toISOString()
+          }])
+          .select()
+          .single(),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error) {
         debug.error('Update user profile error:', error);
@@ -460,11 +600,22 @@ export const dbHelpers = {
     }
     
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Get user profile request timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single(),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
       
       if (error && error.code !== 'PGRST116') {
         // Ignore "not found" errors
@@ -495,6 +646,11 @@ export const dbHelpers = {
     }
     
     try {
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Delete user data request timed out after 10 seconds')), 10000);
+      });
+      
       // Delete in order due to foreign key constraints
       const operations = [
         supabase.from('user_favorites').delete().eq('user_id', userId),
@@ -503,7 +659,12 @@ export const dbHelpers = {
       ];
       
       for (const operation of operations) {
-        const { error } = await operation;
+        // Race each operation against the timeout
+        const { error } = await Promise.race([
+          operation,
+          timeoutPromise
+        ]);
+        
         if (error) {
           debug.error('Delete user data error:', error);
           debug.groupEnd();

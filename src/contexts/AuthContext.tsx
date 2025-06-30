@@ -40,16 +40,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Load user profile from database
+  // Load user profile from database with timeout
   const loadUserProfile = async (userId: string) => {
     try {
       debug.log(`Loading user profile for user: ${userId}`);
-      const profile = await getUserProfile(userId);
+      
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile loading timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual profile loading against the timeout
+      const profile = await Promise.race([
+        getUserProfile(userId),
+        timeoutPromise
+      ]);
+      
       setUserProfile(profile);
       debug.log(`User profile loaded: ${profile ? 'success' : 'not found'}`);
       return profile;
     } catch (error) {
       debug.error('Error loading user profile:', error);
+      // Don't throw the error, just return null to prevent blocking auth flow
       return null;
     }
   };
@@ -58,7 +70,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshProfile = async () => {
     if (user) {
       debug.log(`Refreshing profile for user: ${user.id}`);
-      await loadUserProfile(user.id);
+      try {
+        await loadUserProfile(user.id);
+      } catch (error) {
+        debug.error('Error refreshing profile:', error);
+        // Don't throw, just log the error
+      }
     }
   };
 
@@ -71,11 +88,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     debug.log('Initializing auth context');
 
-    // Get initial session
+    // Get initial session with timeout
     const getInitialSession = async () => {
       try {
         debug.log('Getting initial session');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Create a promise that rejects after a timeout
+        const timeoutPromise = new Promise<{data: {session: null}}>((_,reject) => {
+          setTimeout(() => {
+            debug.warn('Session retrieval timed out after 5 seconds');
+            reject(new Error('Session retrieval timed out'));
+          }, 5000);
+        });
+        
+        // Race the actual session retrieval against the timeout
+        const { data: { session }, error } = await Promise.race([
+          supabase.auth.getSession(),
+          timeoutPromise
+        ]);
         
         if (error) {
           debug.error('Error getting session:', error);
@@ -85,15 +115,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            await loadUserProfile(session.user.id);
+            try {
+              await loadUserProfile(session.user.id);
+            } catch (profileError) {
+              debug.error('Error loading user profile during initialization:', profileError);
+              // Continue even if profile loading fails
+            }
           }
         }
       } catch (error) {
         debug.error('Error in getInitialSession:', error);
+        // Continue with null user/session
       } finally {
+        // Ensure loading state is always set to false
         setLoading(false);
       }
     };
+
+    // Set a timeout to ensure loading state is reset even if everything fails
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        debug.warn('Auth initialization timed out after 10 seconds, resetting loading state');
+        setLoading(false);
+      }
+    }, 10000);
 
     getInitialSession();
 
@@ -106,7 +151,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await loadUserProfile(session.user.id);
+          try {
+            await loadUserProfile(session.user.id);
+          } catch (error) {
+            debug.error('Error loading user profile during auth state change:', error);
+          }
         } else {
           setUserProfile(null);
         }
@@ -117,6 +166,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => {
       debug.log('Cleaning up auth subscription');
+      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);

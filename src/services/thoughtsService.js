@@ -1,8 +1,3 @@
-/*
- * Thoughts Service - Database Operations for Shower Thoughts
- * Handles CRUD operations, favorites, and user history with Supabase
- */
-
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { debug } from '../utils/debugHelpers';
 import { table, getTableName } from './databaseMappingService';
@@ -120,9 +115,22 @@ function clearRequestCache() {
 }
 
 /**
- * Deduplicated request wrapper
+ * Execute a database query with timeout
  */
-async function deduplicatedRequest(key, requestFn) {
+async function executeWithTimeout(queryPromise, timeoutMs = 8000, errorMessage = 'Database query timed out') {
+  // Create a promise that rejects after the timeout
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+  });
+  
+  // Race the actual query against the timeout
+  return Promise.race([queryPromise, timeoutPromise]);
+}
+
+/**
+ * Deduplicated request wrapper with timeout
+ */
+async function deduplicatedRequest(key, requestFn, timeoutMs = 8000) {
   debug.log(`Deduplicated request: ${key}`);
   
   if (requestCache.has(key)) {
@@ -131,7 +139,14 @@ async function deduplicatedRequest(key, requestFn) {
   }
   
   debug.log(`Cache miss for key: ${key}, executing request`);
-  const promise = requestFn();
+  
+  // Create a promise with timeout
+  const promise = executeWithTimeout(
+    requestFn(),
+    timeoutMs,
+    `Request timed out after ${timeoutMs}ms: ${key}`
+  );
+  
   requestCache.set(key, promise);
   
   try {
@@ -167,11 +182,17 @@ export async function saveThought(thought, userId = null) {
 
       debug.log('Prepared thought data for DB:', thoughtData);
       
-      // Use the mapped table name
-      const { data, error } = await table('shower_thoughts')
+      // Use the mapped table name with timeout
+      const queryPromise = table('shower_thoughts')
         .insert([thoughtData])
         .select()
         .single();
+      
+      const { data, error } = await executeWithTimeout(
+        queryPromise,
+        10000,
+        `Thought save timed out after 10 seconds for thought ${thought.id}`
+      );
 
       if (error) {
         debug.error('Supabase error saving thought:', error);
@@ -238,12 +259,18 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query for thoughts');
         
-        // Use the mapped table name
-        const { data, error } = await table('shower_thoughts')
+        // Use the mapped table name with timeout
+        const queryPromise = table('shower_thoughts')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
+        
+        const { data, error } = await executeWithTimeout(
+          queryPromise,
+          10000,
+          `Thoughts fetch timed out after 10 seconds for user ${userId}`
+        );
 
         if (error) {
           debug.error('Supabase error getting thoughts:', error);
@@ -282,7 +309,7 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
         debug.log('Processed thoughts:', thoughts.length);
         debug.groupEnd();
         return thoughts;
-      });
+      }, 10000);
     } else {
       // Fallback to local storage
       debug.log('Fetching thoughts from local storage');
@@ -318,11 +345,17 @@ export async function deleteThought(thoughtId, userId = null) {
     if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Deleting from Supabase database');
       
-      // Use the mapped table name
-      const { error } = await table('shower_thoughts')
+      // Use the mapped table name with timeout
+      const queryPromise = table('shower_thoughts')
         .delete()
         .eq('id', safeThoughtId)
         .eq('user_id', userId);
+      
+      const { error } = await executeWithTimeout(
+        queryPromise,
+        8000,
+        `Thought delete timed out after 8 seconds for thought ${thoughtId}`
+      );
 
       if (error) {
         debug.error('Supabase error deleting thought:', error);
@@ -391,11 +424,17 @@ export async function addToFavorites(thought, userId = null) {
 
       debug.log('Prepared favorite data:', favoriteData);
       
-      // Use the mapped table name
-      const { data, error } = await table('user_favorites')
+      // Use the mapped table name with timeout
+      const queryPromise = table('user_favorites')
         .insert([favoriteData])
         .select()
         .single();
+      
+      const { data, error } = await executeWithTimeout(
+        queryPromise,
+        8000,
+        `Favorite add timed out after 8 seconds for thought ${thoughtId}`
+      );
 
       if (error) {
         // Handle duplicate favorites gracefully
@@ -469,11 +508,17 @@ export async function removeFromFavorites(thoughtId, userId = null) {
 
       debug.log('Executing Supabase query to remove favorite');
       
-      // Use the mapped table name
-      const { error } = await table('user_favorites')
+      // Use the mapped table name with timeout
+      const queryPromise = table('user_favorites')
         .delete()
         .eq('thought_id', safeThoughtId)
         .eq('user_id', userId);
+      
+      const { error } = await executeWithTimeout(
+        queryPromise,
+        8000,
+        `Favorite removal timed out after 8 seconds for thought ${thoughtId}`
+      );
 
       if (error) {
         debug.error('Supabase error removing from favorites:', error);
@@ -518,12 +563,18 @@ export async function getUserFavorites(userId = null, limit = 50) {
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query for favorites');
         
-        // Use the mapped table name
-        const { data, error } = await table('user_favorites')
+        // Use the mapped table name with timeout
+        const queryPromise = table('user_favorites')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(limit);
+        
+        const { data, error } = await executeWithTimeout(
+          queryPromise,
+          8000,
+          `Favorites fetch timed out after 8 seconds for user ${userId}`
+        );
 
         if (error) {
           debug.error('Supabase error getting favorites:', error);
@@ -546,7 +597,7 @@ export async function getUserFavorites(userId = null, limit = 50) {
         debug.log('Processed favorites:', favorites.length);
         debug.groupEnd();
         return favorites;
-      });
+      }, 8000);
     } else {
       // Fallback to local storage
       debug.log('Fetching favorites from local storage');
@@ -587,12 +638,18 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query to check favorite status');
         
-        // Use the mapped table name
-        const { data, error } = await table('user_favorites')
+        // Use the mapped table name with timeout
+        const queryPromise = table('user_favorites')
           .select('thought_id')
           .eq('thought_id', safeThoughtId)
           .eq('user_id', userId)
           .limit(1);
+        
+        const { data, error } = await executeWithTimeout(
+          queryPromise,
+          5000,
+          `Favorite check timed out after 5 seconds for thought ${thoughtId}`
+        );
 
         if (error && error.code !== 'PGRST116') {
           debug.error('Supabase error checking favorite status:', error);
@@ -603,7 +660,7 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
         debug.log(`Favorite status: ${isFavorited ? 'favorited' : 'not favorited'}`);
         debug.groupEnd();
         return isFavorited;
-      });
+      }, 5000);
     } else {
       // Fallback to local storage
       debug.log('Checking favorite status in local storage');
@@ -637,8 +694,19 @@ export async function incrementThoughtViews(thoughtId) {
 
     if (isSupabaseConfigured() && supabase) {
       debug.log('Incrementing views in Supabase database');
-      const { data, error } = await supabase
-        .rpc('increment_thought_views', { thought_id: safeThoughtId });
+      
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('View increment timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.rpc('increment_thought_views', { thought_id: safeThoughtId }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
 
       if (error) {
         debug.error('Database error incrementing views:', error);
@@ -676,11 +744,22 @@ export async function toggleThoughtLike(thoughtId, userId = null) {
 
     if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Toggling like in Supabase database');
-      const { data, error } = await supabase
-        .rpc('toggle_thought_like', { 
+      
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Like toggle timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.rpc('toggle_thought_like', { 
           thought_id: safeThoughtId, 
           user_id: userId 
-        });
+        }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
 
       if (error) {
         debug.error('Database error toggling like:', error);
@@ -718,8 +797,19 @@ export async function incrementThoughtShares(thoughtId) {
 
     if (isSupabaseConfigured() && supabase) {
       debug.log('Incrementing shares in Supabase database');
-      const { data, error } = await supabase
-        .rpc('increment_thought_shares', { thought_id: safeThoughtId });
+      
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Share increment timed out after 5 seconds')), 5000);
+      });
+      
+      // Race the actual request against the timeout
+      const result = await Promise.race([
+        supabase.rpc('increment_thought_shares', { thought_id: safeThoughtId }),
+        timeoutPromise
+      ]);
+      
+      const { data, error } = result;
 
       if (error) {
         debug.error('Database error incrementing shares:', error);
@@ -759,15 +849,21 @@ export async function reorderFavorites(userId, orderedIds) {
 
       debug.log(`Processing ${safeIds.length} valid IDs for reordering`);
       
-      // Update the order in the database
+      // Update the order in the database with timeout
       for (let i = 0; i < safeIds.length; i++) {
         debug.log(`Setting order_index=${i} for thought_id=${safeIds[i]}`);
         
-        // Use the mapped table name
-        await table('user_favorites')
+        // Use the mapped table name with timeout
+        const queryPromise = table('user_favorites')
           .update({ order_index: i })
           .eq('user_id', userId)
           .eq('thought_id', safeIds[i]);
+        
+        await executeWithTimeout(
+          queryPromise,
+          5000,
+          `Reorder operation timed out for thought_id=${safeIds[i]}`
+        );
       }
       
       debug.log('Favorites reordered successfully');
@@ -801,14 +897,22 @@ export async function getUserStats(userId = null) {
       
       debug.log('Executing Supabase queries for thoughts and favorites');
       
-      // Use the mapped table names
+      // Use the mapped table names with timeout
       const [thoughtsResult, favoritesResult] = await Promise.all([
-        table('shower_thoughts')
-          .select('id, mood, source, tokens_used, cost, category')
-          .eq('user_id', userId),
-        table('user_favorites')
-          .select('thought_id')
-          .eq('user_id', userId)
+        executeWithTimeout(
+          table('shower_thoughts')
+            .select('id, mood, source, tokens_used, cost, category')
+            .eq('user_id', userId),
+          8000,
+          `Thoughts stats fetch timed out after 8 seconds for user ${userId}`
+        ),
+        executeWithTimeout(
+          table('user_favorites')
+            .select('thought_id')
+            .eq('user_id', userId),
+          8000,
+          `Favorites stats fetch timed out after 8 seconds for user ${userId}`
+        )
       ]);
 
       if (thoughtsResult.error) {

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getUserThoughts } from '../services/thoughtsService';
 import ThoughtCard from './ThoughtCard';
 import SearchAndFilter from './SearchAndFilter';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { debug } from '../utils/debugHelpers';
 
 interface InfiniteScrollThoughtsProps {
@@ -25,6 +25,7 @@ const InfiniteScrollThoughts = memo(function InfiniteScrollThoughts({
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [loadTimeout, setLoadTimeout] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({
     query: '',
     mood: 'all',
@@ -65,6 +66,23 @@ const InfiniteScrollThoughts = memo(function InfiniteScrollThoughts({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, hasMore]);
 
+  // Set timeout for loading state
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (loading) {
+      timeoutId = setTimeout(() => {
+        setLoadTimeout(true);
+      }, 8000); // Show timeout message after 8 seconds
+    } else {
+      setLoadTimeout(false);
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [loading]);
+
   const loadThoughts = async (reset = false) => {
     if (loading) return;
 
@@ -77,7 +95,18 @@ const InfiniteScrollThoughts = memo(function InfiniteScrollThoughts({
       const offset = (currentPage - 1) * ITEMS_PER_PAGE;
       
       debug.log(`InfiniteScrollThoughts: Fetching page ${currentPage}, offset ${offset}`);
-      const newThoughts = await getUserThoughts(user?.id, ITEMS_PER_PAGE, offset);
+      
+      // Create a promise that rejects after a timeout
+      const timeoutPromise = new Promise<ShowerThought[]>((_, reject) => {
+        setTimeout(() => reject(new Error('Thoughts fetch timed out after 10 seconds')), 10000);
+      });
+      
+      // Race the actual fetch against the timeout
+      const newThoughts = await Promise.race([
+        getUserThoughts(user?.id, ITEMS_PER_PAGE, offset),
+        timeoutPromise
+      ]);
+      
       debug.log(`InfiniteScrollThoughts: Fetched ${newThoughts.length} thoughts`);
       
       if (reset) {
@@ -201,13 +230,42 @@ const InfiniteScrollThoughts = memo(function InfiniteScrollThoughts({
       {/* Error Message */}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl mb-4">
-          <p className="text-red-700 dark:text-red-400">{error}</p>
-          <button 
-            onClick={handleRefresh}
-            className="mt-2 px-4 py-2 bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
-          >
-            Try Again
-          </button>
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+            <div>
+              <p className="text-red-700 dark:text-red-400">{error}</p>
+              <button 
+                onClick={handleRefresh}
+                className="mt-2 px-4 py-2 bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Timeout Message */}
+      {loadTimeout && loading && (
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl mb-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-yellow-700 dark:text-yellow-300 mb-1">
+                Loading Taking Longer Than Expected
+              </h3>
+              <p className="text-yellow-600 dark:text-yellow-400 text-sm">
+                This could be due to network issues or database connectivity problems. We'll keep trying, but you can also try refreshing.
+              </p>
+              <button 
+                onClick={handleRefresh}
+                className="mt-2 px-4 py-2 bg-yellow-100 dark:bg-yellow-800 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-700 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4 inline mr-2" />
+                Refresh
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
