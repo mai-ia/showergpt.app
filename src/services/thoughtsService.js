@@ -130,7 +130,7 @@ async function executeWithTimeout(queryPromise, timeoutMs = 120000, errorMessage
 /**
  * Deduplicated request wrapper with timeout
  */
-async function deduplicatedRequest(key, requestFn, timeoutMs = 120000) {
+async function deduplicatedRequest(key, requestFn, timeoutMs = 240000) {
   debug.log(`Deduplicated request: ${key}`);
   
   if (requestCache.has(key)) {
@@ -190,8 +190,8 @@ export async function saveThought(thought, userId = null) {
       
       const { data, error } = await executeWithTimeout(
         queryPromise,
-        180000,
-        `Thought save timed out after 180 seconds for thought ${thought.id}`
+        300000,
+        `Thought save timed out after 300 seconds for thought ${thought.id}`
       );
 
       if (error) {
@@ -268,8 +268,8 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
         
         const { data, error } = await executeWithTimeout(
           queryPromise,
-        180000,
-        `Thoughts fetch timed out after 180 seconds for user ${userId}`
+        300000,
+        `Thoughts fetch timed out after 300 seconds for user ${userId}`
         );
 
         if (error) {
@@ -352,8 +352,8 @@ export async function deleteThought(thoughtId, userId = null) {
       
       const { error } = await executeWithTimeout(
         queryPromise,
-        150000,
-        `Thought delete timed out after 150 seconds for thought ${thoughtId}`
+        240000,
+        `Thought delete timed out after 240 seconds for thought ${thoughtId}`
       );
 
       if (error) {
@@ -431,8 +431,8 @@ export async function addToFavorites(thought, userId = null) {
       
       const { data, error } = await executeWithTimeout(
         queryPromise,
-          150000,
-          `Favorite add timed out after 150 seconds for thought ${thoughtId}`
+          240000,
+          `Favorite add timed out after 240 seconds for thought ${thoughtId}`
         );
 
       if (error) {
@@ -514,8 +514,8 @@ export async function removeFromFavorites(thoughtId, userId = null) {
       
       const { error } = await executeWithTimeout(
         queryPromise,
-         150000,
-         `Favorite removal timed out after 150 seconds for thought ${thoughtId}`
+         240000,
+         `Favorite removal timed out after 240 seconds for thought ${thoughtId}`
        );
 
       if (error) {
@@ -644,8 +644,8 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
         
         const { data, error } = await executeWithTimeout(
           queryPromise,
-          120000,
-          `Favorite check timed out after 120 seconds for thought ${thoughtId}`
+          240000,
+          `Favorite check timed out after 240 seconds for thought ${thoughtId}`
         );
 
         if (error && error.code !== 'PGRST116') {
@@ -897,15 +897,15 @@ export async function getUserStats(userId = null) {
           table('shower_thoughts')
             .select('id, mood, source, tokens_used, cost, category')
             .eq('user_id', userId),
-          150000,
-          `Thoughts stats fetch timed out after 150 seconds for user ${userId}`
+          300000,
+          `Thoughts stats fetch timed out after 300 seconds for user ${userId}`
         ),
         executeWithTimeout(
           table('user_favorites')
             .select('thought_id')
             .eq('user_id', userId),
-          150000,
-          `Favorites stats fetch timed out after 150 seconds for user ${userId}`
+          300000,
+          `Favorites stats fetch timed out after 300 seconds for user ${userId}`
         )
       ]);
 

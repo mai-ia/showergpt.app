@@ -41,7 +41,7 @@ const initSupabase = () => {
       },
       // Add default timeout for all requests
       realtime: {
-        timeout: 20000 // 20 seconds
+        timeout: 60000 // 60 seconds
       }
     });
     debug.log('Supabase client initialized successfully');
@@ -76,7 +76,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Sign up request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Sign up request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -123,7 +123,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Sign in request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Sign in request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -166,7 +166,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Sign out request timed out after 60 seconds')), 60000);
+        setTimeout(() => reject(new Error('Sign out request timed out after 120 seconds')), 120000);
       });
       
       // Race the actual request against the timeout
@@ -205,7 +205,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Get session request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Get session request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -245,7 +245,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Get user request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Get user request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -286,7 +286,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Update profile request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Update profile request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -329,7 +329,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Update password request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Update password request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -372,7 +372,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Reset password request timed out after 90 seconds')), 90000);
+        setTimeout(() => reject(new Error('Reset password request timed out after 180 seconds')), 180000);
       });
       
       // Race the actual request against the timeout
@@ -415,7 +415,7 @@ export const authHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Delete account request timed out after 120 seconds')), 120000);
+        setTimeout(() => reject(new Error('Delete account request timed out after 240 seconds')), 240000);
       });
       
       // Race the actual request against the timeout
@@ -458,7 +458,7 @@ export const dbHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Save thought request timed out after 120 seconds')), 120000);
+        setTimeout(() => reject(new Error('Save thought request timed out after 240 seconds')), 240000);
       });
       
       // Race the actual request against the timeout
@@ -507,7 +507,7 @@ export const dbHelpers = {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Get user thoughts request timed out after 120 seconds')), 120000);
+        setTimeout(() => reject(new Error('Get user thoughts request timed out after 240 seconds')), 240000);
       });
       
       // Race the actual request against the timeout

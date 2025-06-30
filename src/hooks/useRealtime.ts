@@ -44,11 +44,11 @@ export function useRealtime({
     // Set a timeout to prevent hanging in "connecting" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading && !isConnected) {
-        debug.warn(`Realtime connection to ${table} timed out after 90 seconds`);
+        debug.warn(`Realtime connection to ${table} timed out after 180 seconds`);
         setIsLoading(false);
         setError(new Error('Connection timed out'));
       }
-    }, 90000);
+    }, 180000);
 
     // Map the table name to the actual database table
     const dbTable = getTableName(table as any);
@@ -214,8 +214,8 @@ export function usePresence(userId?: string) {
         
         debug.log('Updating presence with display name:', displayName);
         
-        // Create a promise that rejects after a longer timeout (120 seconds)
-        const timeoutPromise = new Promise<{data: any, error: any}>((_, reject) => {
+        // Create a promise that rejects after a timeout
+        const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Update presence timed out after 120 seconds')), 120000);
         });
         
@@ -362,17 +362,17 @@ export function useLiveNotifications(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Notifications loading timed out after 120 seconds');
+        debug.warn('Notifications loading timed out after 240 seconds');
         setIsLoading(false);
-        setError(new Error('Notifications loading timed out after 120 seconds'));
+        setError(new Error('Notifications loading timed out after 240 seconds'));
       }
-    }, 120000);
+    }, 240000);
 
     const loadNotifications = async () => {
       try {
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Notifications fetch timed out after 120 seconds')), 120000);
+          setTimeout(() => reject(new Error('Mark all as read timed out after 180 seconds')), 180000);
         });
         
         // Race the actual request against the timeout

@@ -92,9 +92,9 @@ const globalCache = new MemoryCache();
 export function useCache<T>(
   key: string,
   fetcher: () => Promise<T>,
-  options: CacheOptions = {}
+  options: CacheOptions = { ttl: 300000 }
 ) {
-  const { ttl = 5 * 60 * 1000, maxSize = 100 } = options;
+  const { ttl = 5 * 60 * 1000, maxSize = 100 } = options; // Default 5 minutes
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -165,9 +165,9 @@ export function useCache<T>(
 export function usePersistentCache<T>(
   key: string,
   fetcher: () => Promise<T>,
-  options: CacheOptions = {}
+  options: CacheOptions = { ttl: 600000 }
 ) {
-  const { ttl = 30 * 60 * 1000 } = options; // 30 minutes default
+  const { ttl = 30 * 60 * 1000 } = options; // 30 minutes default (600000 = 10 minutes)
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);

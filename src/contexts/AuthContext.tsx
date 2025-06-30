@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setTimeout(() => {
             debug.warn('Session retrieval timed out after 180 seconds');
             reject(new Error('Session retrieval timed out'));
-          }, 180000);
+          }, 300000);
         });
         
         // Race the actual session retrieval against the timeout
@@ -135,10 +135,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Set a timeout to ensure loading state is reset even if everything fails
     const loadingTimeout = setTimeout(() => {
       if (loading) {
-        debug.warn('Auth initialization timed out after 300 seconds, resetting loading state');
+        debug.warn('Auth initialization timed out after 600 seconds, resetting loading state');
         setLoading(false);
       }
-    }, 300000);
+    }, 600000);
 
     getInitialSession();
 
