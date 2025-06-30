@@ -30,6 +30,14 @@ const initSupabase = () => {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'x-client-info': 'showergpt-web'
+        }
       }
     });
     debug.log('Supabase client initialized successfully');
@@ -357,7 +365,7 @@ export const dbHelpers = {
         throw error;
       }
       
-      debug.log('Thought saved successfully:', data.id);
+      debug.log('Thought saved successfully to DB:', data.id);
       debug.groupEnd();
       return data;
     } catch (error) {

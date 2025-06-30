@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { getTableName } from '../services/databaseMappingService';
+import { debug } from '../utils/debugHelpers';
 
 interface UseRealtimeOptions {
   table: string;
@@ -35,19 +37,23 @@ export function useRealtime({
 
     setIsLoading(true);
 
+    // Map the table name to the actual database table
+    const dbTable = getTableName(table as any);
+    debug.log(`Setting up realtime subscription for table: ${table} → ${dbTable}`);
+
     // Create channel
     const channel = supabase
-      .channel(`realtime-${table}`)
+      .channel(`realtime-${dbTable}`)
       .on(
         'postgres_changes',
         {
           event,
           schema: 'public',
-          table,
+          table: dbTable,
           filter
         },
         (payload) => {
-          console.log('Realtime update:', payload);
+          debug.log('Realtime update:', payload);
           
           // Call specific event handlers
           switch (payload.eventType) {
@@ -67,7 +73,7 @@ export function useRealtime({
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
+        debug.log('Realtime subscription status:', status);
         setIsConnected(status === 'SUBSCRIBED');
         setIsLoading(false);
       });
@@ -76,6 +82,7 @@ export function useRealtime({
 
     return () => {
       if (channelRef.current) {
+        debug.log(`Removing realtime channel for table: ${dbTable}`);
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
@@ -110,7 +117,7 @@ export function usePresence(userId?: string) {
                            user?.email?.split('@')[0] || 
                            'User';
         
-        console.log('Updating presence with display name:', displayName);
+        debug.log('Updating presence with display name:', displayName);
         
         await supabase.rpc('update_user_presence', {
           presence_status: 'online',
@@ -118,7 +125,7 @@ export function usePresence(userId?: string) {
           user_display_name: displayName
         });
       } catch (error) {
-        console.error('Error updating presence:', error);
+        debug.error('Error updating presence:', error);
       }
     };
 
@@ -134,10 +141,10 @@ export function usePresence(userId?: string) {
         setOnlineUsers(users);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        console.log('User joined:', key, newPresences);
+        debug.log('User joined:', key, newPresences);
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        console.log('User left:', key, leftPresences);
+        debug.log('User left:', key, leftPresences);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -170,6 +177,7 @@ export function usePresence(userId?: string) {
 
     return () => {
       if (presenceRef.current) {
+        debug.log('Removing presence channel');
         supabase.removeChannel(presenceRef.current);
         presenceRef.current = null;
       }
@@ -230,8 +238,9 @@ export function useLiveNotifications(userId?: string) {
 
     const loadNotifications = async () => {
       try {
+        // Use the mapped table name
         const { data, error } = await supabase
-          .from('notifications')
+          .from(getTableName('notifications' as any))
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
@@ -242,7 +251,7 @@ export function useLiveNotifications(userId?: string) {
         setNotifications(data || []);
         setUnreadCount(data?.filter(n => !n.read).length || 0);
       } catch (error) {
-        console.error('Error loading notifications:', error);
+        debug.error('Error loading notifications:', error);
       } finally {
         setIsLoading(false);
       }
@@ -255,14 +264,15 @@ export function useLiveNotifications(userId?: string) {
     if (!isSupabaseConfigured() || !supabase) return;
 
     try {
+      // Use the mapped table name
       const { error } = await supabase
-        .from('notifications')
+        .from(getTableName('notifications' as any))
         .update({ read: true })
         .eq('id', notificationId);
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      debug.error('Error marking notification as read:', error);
     }
   }, []);
 
@@ -270,8 +280,9 @@ export function useLiveNotifications(userId?: string) {
     if (!isSupabaseConfigured() || !supabase || !userId) return;
 
     try {
+      // Use the mapped table name
       const { error } = await supabase
-        .from('notifications')
+        .from(getTableName('notifications' as any))
         .update({ read: true })
         .eq('user_id', userId)
         .eq('read', false);
@@ -279,7 +290,7 @@ export function useLiveNotifications(userId?: string) {
       if (error) throw error;
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      debug.error('Error marking all notifications as read:', error);
     }
   }, [userId]);
 

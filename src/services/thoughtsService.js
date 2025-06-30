@@ -5,6 +5,7 @@
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { debug } from '../utils/debugHelpers';
+import { table, getTableName } from './databaseMappingService';
 
 // Local storage fallback keys
 const LOCAL_THOUGHTS_KEY = 'showergpt-user-thoughts';
@@ -157,8 +158,9 @@ export async function saveThought(thought, userId = null) {
       thoughtData.user_id = userId;
 
       debug.log('Prepared thought data for DB:', thoughtData);
-      const { data, error } = await supabase
-        .from('shower_thoughts')
+      
+      // Use the mapped table name
+      const { data, error } = await table('shower_thoughts')
         .insert([thoughtData])
         .select()
         .single();
@@ -224,8 +226,9 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
       
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query for thoughts');
-        const { data, error } = await supabase
-          .from('shower_thoughts')
+        
+        // Use the mapped table name
+        const { data, error } = await table('shower_thoughts')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
@@ -294,8 +297,9 @@ export async function deleteThought(thoughtId, userId = null) {
     // If Supabase is configured and user is authenticated, delete from database
     if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Deleting from Supabase database');
-      const { error } = await supabase
-        .from('shower_thoughts')
+      
+      // Use the mapped table name
+      const { error } = await table('shower_thoughts')
         .delete()
         .eq('id', safeThoughtId)
         .eq('user_id', userId);
@@ -363,8 +367,9 @@ export async function addToFavorites(thought, userId = null) {
       };
 
       debug.log('Prepared favorite data:', favoriteData);
-      const { data, error } = await supabase
-        .from('user_favorites')
+      
+      // Use the mapped table name
+      const { data, error } = await table('user_favorites')
         .insert([favoriteData])
         .select()
         .single();
@@ -437,8 +442,9 @@ export async function removeFromFavorites(thoughtId, userId = null) {
       }
 
       debug.log('Executing Supabase query to remove favorite');
-      const { error } = await supabase
-        .from('user_favorites')
+      
+      // Use the mapped table name
+      const { error } = await table('user_favorites')
         .delete()
         .eq('thought_id', safeThoughtId)
         .eq('user_id', userId);
@@ -482,8 +488,9 @@ export async function getUserFavorites(userId = null, limit = 50) {
       
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query for favorites');
-        const { data, error } = await supabase
-          .from('user_favorites')
+        
+        // Use the mapped table name
+        const { data, error } = await table('user_favorites')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
@@ -550,8 +557,9 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
       
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query to check favorite status');
-        const { data, error } = await supabase
-          .from('user_favorites')
+        
+        // Use the mapped table name
+        const { data, error } = await table('user_favorites')
           .select('thought_id')
           .eq('thought_id', safeThoughtId)
           .eq('user_id', userId)
@@ -725,8 +733,9 @@ export async function reorderFavorites(userId, orderedIds) {
       // Update the order in the database
       for (let i = 0; i < safeIds.length; i++) {
         debug.log(`Setting order_index=${i} for thought_id=${safeIds[i]}`);
-        await supabase
-          .from('user_favorites')
+        
+        // Use the mapped table name
+        await table('user_favorites')
           .update({ order_index: i })
           .eq('user_id', userId)
           .eq('thought_id', safeIds[i]);
@@ -759,13 +768,13 @@ export async function getUserStats(userId = null) {
       debug.log('Fetching stats from Supabase database');
       
       debug.log('Executing Supabase queries for thoughts and favorites');
+      
+      // Use the mapped table names
       const [thoughtsResult, favoritesResult] = await Promise.all([
-        supabase
-          .from('shower_thoughts')
+        table('shower_thoughts')
           .select('id, mood, source, tokens_used, cost, category')
           .eq('user_id', userId),
-        supabase
-          .from('user_favorites')
+        table('user_favorites')
           .select('thought_id')
           .eq('user_id', userId)
       ]);

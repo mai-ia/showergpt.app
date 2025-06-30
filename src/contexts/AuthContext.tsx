@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, authHelpers, dbHelpers, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, authHelpers, isSupabaseConfigured } from '../lib/supabase';
+import { getUserProfile, updateUserProfile } from '../lib/dbHelpers';
 import { debug } from '../utils/debugHelpers';
 
 interface AuthContextType {
@@ -43,7 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loadUserProfile = async (userId: string) => {
     try {
       debug.log(`Loading user profile for user: ${userId}`);
-      const profile = await dbHelpers.getUserProfile(userId);
+      const profile = await getUserProfile(userId);
       setUserProfile(profile);
       debug.log(`User profile loaded: ${profile ? 'success' : 'not found'}`);
       return profile;
@@ -129,7 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.user) {
         try {
           debug.log(`Creating profile for new user: ${result.user.id}`);
-          await dbHelpers.updateUserProfile(result.user.id, {
+          await updateUserProfile(result.user.id, {
             email: result.user.email,
             display_name: userData.display_name || email.split('@')[0],
             ...userData
@@ -177,7 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Update database profile
       if (user) {
         debug.log(`Updating database profile for user: ${user.id}`);
-        await dbHelpers.updateUserProfile(user.id, updates);
+        await updateUserProfile(user.id, updates);
         await refreshProfile();
       }
       
