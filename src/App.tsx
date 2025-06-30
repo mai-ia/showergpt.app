@@ -33,6 +33,9 @@ import Card from './components/ui/Card';
 import Tooltip from './components/ui/Tooltip';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
+// Database status checker
+import DatabaseStatusChecker from './components/DatabaseStatusChecker';
+
 // Lazy loaded components
 import {
   LazyInfiniteScrollThoughts,
@@ -72,6 +75,7 @@ function AppContent() {
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [showDatabaseStatus, setShowDatabaseStatus] = useState(false);
 
   // Cached user thoughts
   const { data: cachedThoughts, refresh: refreshThoughts } = useCache(
@@ -483,6 +487,19 @@ function AppContent() {
                 </Tooltip>
               </ProtectedRoute>
               
+              {/* Database Status Button */}
+              <Tooltip content="Check database connection">
+                <Button
+                  onClick={() => setShowDatabaseStatus(!showDatabaseStatus)}
+                  variant="ghost"
+                  size="md"
+                  leftIcon={<Database className="w-5 h-5" />}
+                  className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
+                >
+                  <span className="hidden sm:inline">Database</span>
+                </Button>
+              </Tooltip>
+              
               {/* Auth Button */}
               {isAuthConfigured && (
                 <Tooltip content={user ? 'View your profile' : 'Sign in to save thoughts'}>
@@ -521,6 +538,9 @@ function AppContent() {
             {/* Environment Warnings */}
             <EnvironmentWarning />
             <SupabaseWarning />
+            
+            {/* Database Status Checker */}
+            {showDatabaseStatus && <DatabaseStatusChecker />}
 
             {/* Live Features */}
             {showLiveFeed && (
