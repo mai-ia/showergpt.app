@@ -49,8 +49,8 @@ export async function getUserProfile(userId: string) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      180000,
-      `Profile fetch for user ${userId} timed out after 180 seconds`
+      300000,
+      `Profile fetch for user ${userId} timed out after 300 seconds`
     );
     
     if (error && error.code !== 'PGRST116') {
@@ -98,8 +98,8 @@ export async function updateUserProfile(userId: string, profileData: any) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      150000,
-      `Profile update for user ${userId} timed out after 150 seconds`
+      300000,
+      `Profile update for user ${userId} timed out after 300 seconds`
     );
     
     if (error) {
@@ -143,8 +143,8 @@ export async function getUserThoughts(userId: string, limit = 50, offset = 0) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      150000,
-      `Thoughts fetch for user ${userId} timed out after 150 seconds`
+      300000,
+      `Thoughts fetch for user ${userId} timed out after 300 seconds`
     );
 
     if (error) {
@@ -188,8 +188,8 @@ export async function getUserFavorites(userId: string, limit = 50) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      120000,
-      `Favorites fetch for user ${userId} timed out after 120 seconds`
+      240000,
+      `Favorites fetch for user ${userId} timed out after 240 seconds`
     );
     
     if (error) {

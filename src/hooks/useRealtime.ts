@@ -197,11 +197,11 @@ export function usePresence(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Presence connection timed out after 90 seconds');
+        debug.warn('Presence connection timed out after 180 seconds');
         setIsLoading(false);
         setError(new Error('Presence connection timed out'));
       }
-    }, 90000);
+    }, 180000);
 
     // Update user presence
     const updatePresence = async () => {
@@ -214,8 +214,8 @@ export function usePresence(userId?: string) {
         
         debug.log('Updating presence with display name:', displayName);
         
-        // Create a promise that rejects after a timeout
-        const timeoutPromise = new Promise((_, reject) => {
+        // Create a promise that rejects after a longer timeout (120 seconds)
+        const timeoutPromise = new Promise<{data: any, error: any}>((_, reject) => {
           setTimeout(() => reject(new Error('Update presence timed out after 120 seconds')), 120000);
         });
         
