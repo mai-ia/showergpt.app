@@ -204,7 +204,18 @@ export async function checkDatabaseConnection(supabase: any): Promise<boolean> {
   
   try {
     debug.log('Testing database connection...');
-    const { data, error } = await supabase.from('shower_thoughts').select('id').limit(1);
+    
+    // Create an AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const { data, error } = await supabase
+      .from('shower_thoughts')
+      .select('id')
+      .limit(1)
+      .abortSignal(controller.signal);
+    
+    clearTimeout(timeoutId);
     
     if (error) {
       debug.error('Database connection test failed', error);
