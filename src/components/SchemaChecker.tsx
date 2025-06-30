@@ -55,7 +55,7 @@ export default function SchemaChecker() {
     try {
       // Create AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       // Try to count rows in the table
       const { count, error } = await supabase
@@ -92,7 +92,7 @@ export default function SchemaChecker() {
         return {
           name: tableName,
           exists: null,
-          error: 'Query timed out after 3 seconds',
+          error: 'Query timed out after 10 seconds',
           rowCount: null,
           checked: true
         };

@@ -98,7 +98,7 @@ const InfiniteScrollThoughts = memo(function InfiniteScrollThoughts({
       
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise<ShowerThought[]>((_, reject) => {
-        setTimeout(() => reject(new Error('Thoughts fetch timed out after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Thoughts fetch timed out after 20 seconds')), 20000);
       });
       
       // Race the actual fetch against the timeout

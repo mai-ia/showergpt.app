@@ -43,7 +43,7 @@ export default function MinimalDatabaseTest() {
     
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     try {
       // Perform the simplest possible query - SELECT version()
@@ -73,7 +73,7 @@ export default function MinimalDatabaseTest() {
       setStatus('error');
       
       if (err.name === 'AbortError') {
-        setError('Connection timed out after 5 seconds');
+        setError('Connection timed out after 15 seconds');
       } else {
         setError(err.message || 'Unknown error occurred');
       }

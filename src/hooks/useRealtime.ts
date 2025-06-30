@@ -44,11 +44,11 @@ export function useRealtime({
     // Set a timeout to prevent hanging in "connecting" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading && !isConnected) {
-        debug.warn(`Realtime connection to ${table} timed out after 10 seconds`);
+        debug.warn(`Realtime connection to ${table} timed out after 20 seconds`);
         setIsLoading(false);
         setError(new Error('Connection timed out'));
       }
-    }, 10000);
+    }, 20000);
 
     // Map the table name to the actual database table
     const dbTable = getTableName(table as any);
@@ -197,11 +197,11 @@ export function usePresence(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Presence connection timed out after 10 seconds');
+        debug.warn('Presence connection timed out after 20 seconds');
         setIsLoading(false);
         setError(new Error('Presence connection timed out'));
       }
-    }, 10000);
+    }, 20000);
 
     // Update user presence
     const updatePresence = async () => {
@@ -216,7 +216,7 @@ export function usePresence(userId?: string) {
         
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Update presence timed out after 20 seconds')), 20000);
+          setTimeout(() => reject(new Error('Update presence timed out after 30 seconds')), 30000);
         });
         
         // Race the actual request against the timeout
@@ -362,17 +362,17 @@ export function useLiveNotifications(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Notifications loading timed out after 23 seconds');
+        debug.warn('Notifications loading timed out after 35 seconds');
         setIsLoading(false);
-        setError(new Error('Notifications loading timed out after 23 seconds'));
+        setError(new Error('Notifications loading timed out after 35 seconds'));
       }
-    }, 23000);
+    }, 35000);
 
     const loadNotifications = async () => {
       try {
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Notifications fetch timed out after 20 seconds')), 20000);
+          setTimeout(() => reject(new Error('Notifications fetch timed out after 30 seconds')), 30000);
         });
         
         // Race the actual request against the timeout
@@ -421,7 +421,7 @@ export function useLiveNotifications(userId?: string) {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Mark as read timed out after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Mark as read timed out after 20 seconds')), 20000);
       });
       
       // Race the actual request against the timeout
@@ -448,7 +448,7 @@ export function useLiveNotifications(userId?: string) {
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Mark all as read timed out after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Mark all as read timed out after 20 seconds')), 20000);
       });
       
       // Race the actual request against the timeout
