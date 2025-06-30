@@ -35,6 +35,7 @@ import Card from './components/ui/Card';
 import Tooltip from './components/ui/Tooltip';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import DatabaseDiagnostic from './components/DatabaseDiagnostic';
+import EnvVariableChecker from './components/EnvVariableChecker';
 
 // Lazy loaded components
 import {
@@ -543,6 +544,9 @@ function AppContent() {
             
             {/* Database Diagnostic Component */}
             <DatabaseDiagnostic />
+            
+            {/* Environment Variable Checker */}
+            <EnvVariableChecker />
 
             {/* Live Features */}
             {showLiveFeed && (
