@@ -11,6 +11,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { initPerformanceMonitoring, measureComponentRender } from './utils/performance';
 import { useCache } from './hooks/useCache';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { checkDatabaseConnection } from './utils/debugHelpers';
 
 // UI Components
 import { ToastProvider, useToast } from './components/ui/Toast';
@@ -93,6 +95,22 @@ function AppContent() {
   useEffect(() => {
     document.title = '🚿 ShowerGPT - Whimsical Shower Thoughts';
   }, []);
+
+  // Check Supabase connection when auth is configured
+  useEffect(() => {
+    if (isAuthConfigured && supabase) {
+      checkDatabaseConnection(supabase)
+        .then(isConnected => {
+          console.log('Supabase connection status:', isConnected ? 'Connected' : 'Failed');
+          if (!isConnected) {
+            showError('Database Connection Error', 'Could not connect to Supabase. Check your configuration.');
+          }
+        })
+        .catch(err => {
+          console.error('Error checking database connection:', err);
+        });
+    }
+  }, [isAuthConfigured, showError]);
 
   // Load user's thoughts when they sign in with proper error handling
   useEffect(() => {
