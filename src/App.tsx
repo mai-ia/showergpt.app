@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
-import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip, Zap, Users, Database } from 'lucide-react';
+import { Droplets, Heart, Sparkles, Waves, History, Trash2, Download, User, LogIn, BarChart3, Grip, Zap, Users } from 'lucide-react';
 import { ShowerThought, GenerationRequest } from './types';
 import { generateShowerThought, generateVariation } from './utils/thoughtGenerator';
 import { generateShowerThoughtWithAI, generateVariationWithAI, isOpenAIConfigured } from './services/openaiService';
@@ -32,9 +32,6 @@ import Button from './components/ui/Button';
 import Card from './components/ui/Card';
 import Tooltip from './components/ui/Tooltip';
 import LoadingSpinner from './components/ui/LoadingSpinner';
-
-// Database status checker
-import DatabaseStatusChecker from './components/DatabaseStatusChecker';
 
 // Lazy loaded components
 import {
@@ -487,19 +484,6 @@ function AppContent() {
                 </Tooltip>
               </ProtectedRoute>
               
-              {/* Database Status Button */}
-              <Tooltip content="Check database connection">
-                <Button
-                  onClick={() => setShowDatabaseStatus(!showDatabaseStatus)}
-                  variant="ghost"
-                  size="md"
-                  leftIcon={<Database className="w-5 h-5" />}
-                  className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 border-white border-opacity-20"
-                >
-                  <span className="hidden sm:inline">Database</span>
-                </Button>
-              </Tooltip>
-              
               {/* Auth Button */}
               {isAuthConfigured && (
                 <Tooltip content={user ? 'View your profile' : 'Sign in to save thoughts'}>
@@ -538,9 +522,6 @@ function AppContent() {
             {/* Environment Warnings */}
             <EnvironmentWarning />
             <SupabaseWarning />
-            
-            {/* Database Status Checker */}
-            {showDatabaseStatus && <DatabaseStatusChecker />}
 
             {/* Live Features */}
             {showLiveFeed && (
