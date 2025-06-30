@@ -116,8 +116,8 @@ export class MobileOptimizer {
     // Optimize images
     this.optimizeImages();
     
-    // Set up service worker for caching
-    this.registerServiceWorker();
+    // Service worker registration disabled for StackBlitz compatibility
+    // this.registerServiceWorker();
   }
 
   // Preload critical resources
@@ -162,12 +162,12 @@ export class MobileOptimizer {
     });
   }
 
-  // Register service worker for caching
-  private registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
-    }
-  }
+  // Service worker registration disabled for StackBlitz compatibility
+  // private registerServiceWorker() {
+  //   if ('serviceWorker' in navigator) {
+  //     navigator.serviceWorker.register('/sw.js').catch(console.error);
+  //   }
+  // }
 
   // Observe element for lazy loading
   observeElement(element: HTMLElement) {
