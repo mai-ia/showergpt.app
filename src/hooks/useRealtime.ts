@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UseRealtimeOptions {
   table: string;
@@ -87,6 +88,7 @@ export function useRealtime({
 }
 
 export function usePresence(userId?: string) {
+  const { user, userProfile } = useAuth();
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const presenceRef = useRef<RealtimeChannel | null>(null);
@@ -102,9 +104,18 @@ export function usePresence(userId?: string) {
     // Update user presence
     const updatePresence = async () => {
       try {
+        // Get display name from user profile
+        const displayName = userProfile?.display_name || 
+                           user?.user_metadata?.display_name || 
+                           user?.email?.split('@')[0] || 
+                           'User';
+        
+        console.log('Updating presence with display name:', displayName);
+        
         await supabase.rpc('update_user_presence', {
           presence_status: 'online',
-          page_location: window.location.pathname
+          page_location: window.location.pathname,
+          user_display_name: displayName
         });
       } catch (error) {
         console.error('Error updating presence:', error);
@@ -121,7 +132,6 @@ export function usePresence(userId?: string) {
         const state = channel.presenceState();
         const users = Object.values(state).flat();
         setOnlineUsers(users);
-        setIsLoading(false);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
         console.log('User joined:', key, newPresences);
@@ -134,7 +144,11 @@ export function usePresence(userId?: string) {
           await channel.track({
             user_id: userId,
             online_at: new Date().toISOString(),
-            page: window.location.pathname
+            page: window.location.pathname,
+            display_name: userProfile?.display_name || 
+                         user?.user_metadata?.display_name || 
+                         user?.email?.split('@')[0] || 
+                         'User'
           });
         }
         setIsLoading(false);
@@ -163,7 +177,7 @@ export function usePresence(userId?: string) {
       clearInterval(presenceInterval);
       setIsLoading(false);
     };
-  }, [userId]);
+  }, [userId, user, userProfile]);
 
   return { onlineUsers, isLoading };
 }
