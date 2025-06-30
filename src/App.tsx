@@ -75,7 +75,6 @@ function AppContent() {
   const [resetTime, setResetTime] = useState<string>('');
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
-  const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   // Cached user thoughts
   const { data: cachedThoughts, refresh: refreshThoughts } = useCache(
@@ -83,15 +82,6 @@ function AppContent() {
     () => getUserThoughts(user?.id, 10),
     { ttl: 2 * 60 * 1000 } // 2 minutes cache
   );
-
-  // Check if this is a password reset page
-  useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get('type');
-    if (type === 'recovery') {
-      setIsPasswordReset(true);
-    }
-  }, []);
 
   // Update page title
   useEffect(() => {
@@ -336,35 +326,6 @@ function AppContent() {
       console.error('Export error:', err);
     }
   }, [showError]);
-
-  const handlePasswordResetSuccess = () => {
-    setIsPasswordReset(false);
-    // Clear the hash from URL
-    window.history.replaceState(null, '', window.location.pathname);
-    success('Password updated!', 'Your password has been successfully updated.');
-  };
-
-  // Show password reset form if this is a password reset session
-  if (isPasswordReset) {
-    return (
-      <>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
-          <Card variant="elevated" className="max-w-md w-full">
-            <Suspense fallback={<LoadingFallback message="Loading password reset..." />}>
-              <LazyResetPasswordForm onSuccess={handlePasswordResetSuccess} />
-            </Suspense>
-          </Card>
-        </div>
-       
-        {/* Payment Prompt Modal */}
-        <PaymentPromptModal 
-          isOpen={showPaymentPromptModal}
-          onClose={() => setShowPaymentPromptModal(false)}
-          resetTime={resetTime}
-        />
-      </>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden transition-colors duration-300">
@@ -769,11 +730,56 @@ function AppContent() {
           />
         </Suspense>
       )}
+
+      {/* Payment Prompt Modal */}
+      <PaymentPromptModal 
+        isOpen={showPaymentPromptModal}
+        onClose={() => setShowPaymentPromptModal(false)}
+        resetTime={resetTime}
+      />
     </div>
   );
 }
 
 function App() {
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
+
+  // Check if this is a password reset page
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    if (type === 'recovery') {
+      setIsPasswordReset(true);
+    }
+  }, []);
+
+  const handlePasswordResetSuccess = () => {
+    setIsPasswordReset(false);
+    // Clear the hash from URL
+    window.history.replaceState(null, '', window.location.pathname);
+  };
+
+  // Show password reset form if this is a password reset session
+  if (isPasswordReset) {
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+                <Card variant="elevated" className="max-w-md w-full">
+                  <Suspense fallback={<LoadingFallback message="Loading password reset..." />}>
+                    <LazyResetPasswordForm onSuccess={handlePasswordResetSuccess} />
+                  </Suspense>
+                </Card>
+              </div>
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
