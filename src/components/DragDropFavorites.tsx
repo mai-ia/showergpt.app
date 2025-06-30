@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Heart, GripVertical, X } from 'lucide-react';
 import { ShowerThought } from '../types';
@@ -11,7 +11,7 @@ interface DragDropFavoritesProps {
   refreshTrigger: number;
 }
 
-export default function DragDropFavorites({ onClose, refreshTrigger }: DragDropFavoritesProps) {
+const DragDropFavorites = memo(function DragDropFavorites({ onClose, refreshTrigger }: DragDropFavoritesProps) {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState<ShowerThought[]>([]);
   const [loading, setLoading] = useState(false);
@@ -169,4 +169,9 @@ export default function DragDropFavorites({ onClose, refreshTrigger }: DragDropF
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if refreshTrigger changes
+  return prevProps.refreshTrigger === nextProps.refreshTrigger;
+});
+
+export default DragDropFavorites;

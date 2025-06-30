@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { History, X, Trash2, Download, Search, Filter } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { getThoughtHistory, clearHistory, exportThoughts } from '../utils/storage';
@@ -10,7 +10,7 @@ interface HistoryPanelProps {
   refreshTrigger: number;
 }
 
-export default function HistoryPanel({ onClose, onRegenerate, refreshTrigger }: HistoryPanelProps) {
+const HistoryPanel = memo(function HistoryPanel({ onClose, onRegenerate, refreshTrigger }: HistoryPanelProps) {
   const [history, setHistory] = useState<ShowerThought[]>([]);
   const [filteredHistory, setFilteredHistory] = useState<ShowerThought[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -223,4 +223,12 @@ export default function HistoryPanel({ onClose, onRegenerate, refreshTrigger }: 
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if refreshTrigger changes
+  return (
+    prevProps.refreshTrigger === nextProps.refreshTrigger &&
+    prevProps.onRegenerate === nextProps.onRegenerate
+  );
+});
+
+export default HistoryPanel;

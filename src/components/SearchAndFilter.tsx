@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Search, Filter, X, Calendar, Tag, Sparkles } from 'lucide-react';
 import { SearchFilters } from '../types';
 import { thoughtCategories } from '../data/categories';
@@ -10,7 +10,7 @@ interface SearchAndFilterProps {
   className?: string;
 }
 
-export default function SearchAndFilter({ 
+const SearchAndFilter = memo(function SearchAndFilter({ 
   filters, 
   onFiltersChange, 
   onClear, 
@@ -143,4 +143,22 @@ export default function SearchAndFilter({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Deep comparison of filters object
+  const filtersEqual = (
+    prevProps.filters.query === nextProps.filters.query &&
+    prevProps.filters.mood === nextProps.filters.mood &&
+    prevProps.filters.category === nextProps.filters.category &&
+    prevProps.filters.source === nextProps.filters.source &&
+    prevProps.filters.dateRange === nextProps.filters.dateRange
+  );
+
+  return (
+    filtersEqual &&
+    prevProps.onFiltersChange === nextProps.onFiltersChange &&
+    prevProps.onClear === nextProps.onClear &&
+    prevProps.className === nextProps.className
+  );
+});
+
+export default SearchAndFilter;

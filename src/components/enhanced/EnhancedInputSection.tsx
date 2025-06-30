@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Droplets, Shuffle, Zap, Lightbulb, Sparkles, Wand2 } from 'lucide-react';
 import { GenerationRequest } from '../../types';
 import { getRandomTopic } from '../../utils/thoughtGenerator';
@@ -19,7 +19,11 @@ interface EnhancedInputSectionProps {
   error?: string;
 }
 
-export default function EnhancedInputSection({ onGenerate, isLoading, error }: EnhancedInputSectionProps) {
+const EnhancedInputSection = memo(function EnhancedInputSection({ 
+  onGenerate, 
+  isLoading, 
+  error 
+}: EnhancedInputSectionProps) {
   const { error: showError } = useToast();
   const [topic, setTopic] = useState('');
   const [mood, setMood] = useState<'philosophical' | 'humorous' | 'scientific'>('philosophical');
@@ -321,4 +325,13 @@ export default function EnhancedInputSection({ onGenerate, isLoading, error }: E
       </form>
     </Card>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if essential props change
+  return (
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.error === nextProps.error
+    // Don't compare onGenerate callback as it changes frequently
+  );
+});
+
+export default EnhancedInputSection;

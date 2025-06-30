@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Heart, X, Droplets } from 'lucide-react';
 import { ShowerThought } from '../types';
 import { getUserFavorites } from '../services/thoughtsService';
@@ -10,7 +10,7 @@ interface SavedThoughtsProps {
   refreshTrigger: number;
 }
 
-export default function SavedThoughts({ onClose, refreshTrigger }: SavedThoughtsProps) {
+const SavedThoughts = memo(function SavedThoughts({ onClose, refreshTrigger }: SavedThoughtsProps) {
   const { user } = useAuth();
   const [savedThoughts, setSavedThoughts] = useState<ShowerThought[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,4 +116,9 @@ export default function SavedThoughts({ onClose, refreshTrigger }: SavedThoughts
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if refreshTrigger changes
+  return prevProps.refreshTrigger === nextProps.refreshTrigger;
+});
+
+export default SavedThoughts;
