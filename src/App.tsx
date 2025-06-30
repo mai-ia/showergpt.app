@@ -388,10 +388,12 @@ function AppContent() {
               {/* Theme Toggle */}
               <ThemeToggle />
               
-              {/* Live Notifications */}
-              <Suspense fallback={<div className="w-12 h-12 bg-white bg-opacity-20 rounded-2xl animate-pulse"></div>}>
-                <LazyLiveNotifications />
-              </Suspense>
+              {/* Live Notifications - Only render one instance */}
+              {isAuthConfigured && user && (
+                <Suspense fallback={<div className="w-12 h-12 bg-white bg-opacity-20 rounded-2xl animate-pulse"></div>}>
+                  <LazyLiveNotifications />
+                </Suspense>
+              )}
               
               {/* Cloud Sync Indicator */}
               <CloudSyncIndicator />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -22,12 +22,17 @@ export function useRealtime({
   onChange
 }: UseRealtimeOptions) {
   const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
+      setIsConnected(false);
+      setIsLoading(false);
       return;
     }
+
+    setIsLoading(true);
 
     // Create channel
     const channel = supabase
@@ -63,6 +68,7 @@ export function useRealtime({
       .subscribe((status) => {
         console.log('Realtime subscription status:', status);
         setIsConnected(status === 'SUBSCRIBED');
+        setIsLoading(false);
       });
 
     channelRef.current = channel;
@@ -73,20 +79,25 @@ export function useRealtime({
         channelRef.current = null;
       }
       setIsConnected(false);
+      setIsLoading(false);
     };
   }, [table, event, filter, onInsert, onUpdate, onDelete, onChange]);
 
-  return { isConnected };
+  return { isConnected, isLoading };
 }
 
 export function usePresence(userId?: string) {
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const presenceRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase || !userId) {
+      setIsLoading(false);
       return;
     }
+
+    setIsLoading(true);
 
     // Update user presence
     const updatePresence = async () => {
@@ -110,6 +121,7 @@ export function usePresence(userId?: string) {
         const state = channel.presenceState();
         const users = Object.values(state).flat();
         setOnlineUsers(users);
+        setIsLoading(false);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
         console.log('User joined:', key, newPresences);
@@ -125,6 +137,7 @@ export function usePresence(userId?: string) {
             page: window.location.pathname
           });
         }
+        setIsLoading(false);
       });
 
     presenceRef.current = channel;
@@ -148,18 +161,20 @@ export function usePresence(userId?: string) {
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(presenceInterval);
+      setIsLoading(false);
     };
   }, [userId]);
 
-  return { onlineUsers };
+  return { onlineUsers, isLoading };
 }
 
 export function useLiveNotifications(userId?: string) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Subscribe to new notifications
-  useRealtime({
+  const { isConnected } = useRealtime({
     table: 'notifications',
     filter: `user_id=eq.${userId}`,
     onInsert: (payload) => {
@@ -193,8 +208,11 @@ export function useLiveNotifications(userId?: string) {
   // Load initial notifications
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase || !userId) {
+      setIsLoading(false);
       return;
     }
+
+    setIsLoading(true);
 
     const loadNotifications = async () => {
       try {
@@ -211,13 +229,15 @@ export function useLiveNotifications(userId?: string) {
         setUnreadCount(data?.filter(n => !n.read).length || 0);
       } catch (error) {
         console.error('Error loading notifications:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadNotifications();
   }, [userId]);
 
-  const markAsRead = async (notificationId: string) => {
+  const markAsRead = useCallback(async (notificationId: string) => {
     if (!isSupabaseConfigured() || !supabase) return;
 
     try {
@@ -230,9 +250,9 @@ export function useLiveNotifications(userId?: string) {
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
-  };
+  }, []);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase || !userId) return;
 
     try {
@@ -247,12 +267,14 @@ export function useLiveNotifications(userId?: string) {
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
-  };
+  }, [userId]);
 
   return {
     notifications,
     unreadCount,
     markAsRead,
-    markAllAsRead
+    markAllAsRead,
+    isLoading,
+    isConnected
   };
 }
