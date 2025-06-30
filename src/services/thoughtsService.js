@@ -335,8 +335,7 @@ export async function deleteThought(thoughtId, userId = null) {
   debug.log('Deleting thought with params:', { thoughtId, userId });
   
   try {
-    const safeThoughtId = safeUUID(thoughtId);
-    if (!safeThoughtId && isSupabaseConfigured() && userId) {
+    if (!thoughtId && isSupabaseConfigured() && userId) {
       debug.error('Invalid thought ID format:', thoughtId);
       throw new Error('Invalid thought ID format');
     }
@@ -348,7 +347,7 @@ export async function deleteThought(thoughtId, userId = null) {
       // Use the mapped table name with timeout
       const queryPromise = table('shower_thoughts')
         .delete()
-        .eq('id', safeThoughtId)
+        .eq('id', thoughtId)
         .eq('user_id', userId);
       
       const { error } = await executeWithTimeout(
@@ -499,8 +498,7 @@ export async function removeFromFavorites(thoughtId, userId = null) {
     // If Supabase is configured and user is authenticated, remove from database
     if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Removing from favorites in Supabase database');
-      const safeThoughtId = safeUUID(thoughtId);
-      if (!safeThoughtId) {
+      if (!thoughtId) {
         debug.warn('Invalid thought ID for favorite removal:', thoughtId);
         debug.groupEnd();
         return true; // Silently succeed for invalid IDs
@@ -511,7 +509,7 @@ export async function removeFromFavorites(thoughtId, userId = null) {
       // Use the mapped table name with timeout
       const queryPromise = table('user_favorites')
         .delete()
-        .eq('thought_id', safeThoughtId)
+        .eq('thought_id', thoughtId)
         .eq('user_id', userId);
       
       const { error } = await executeWithTimeout(
@@ -626,14 +624,13 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
     // If Supabase is configured and user is authenticated, check database
     if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Checking favorite status in Supabase database');
-      const safeThoughtId = safeUUID(thoughtId);
-      if (!safeThoughtId) {
+      if (!thoughtId) {
         debug.warn('Invalid thought ID format:', thoughtId);
         debug.groupEnd();
         return false;
       }
 
-      const cacheKey = `thought-favorited-${userId}-${safeThoughtId}`;
+      const cacheKey = `thought-favorited-${userId}-${thoughtId}`;
       
       return await deduplicatedRequest(cacheKey, async () => {
         debug.log('Executing Supabase query to check favorite status');
@@ -641,7 +638,7 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
         // Use the mapped table name with timeout
         const queryPromise = table('user_favorites')
           .select('thought_id')
-          .eq('thought_id', safeThoughtId)
+          .eq('thought_id', thoughtId)
           .eq('user_id', userId)
           .limit(1);
         
@@ -685,8 +682,7 @@ export async function incrementThoughtViews(thoughtId) {
   debug.log('Incrementing views for thought:', thoughtId);
   
   try {
-    const safeThoughtId = safeUUID(thoughtId);
-    if (!safeThoughtId) {
+    if (!thoughtId) {
       debug.warn('Invalid thought ID for view increment:', thoughtId);
       debug.groupEnd();
       return 1;
@@ -702,7 +698,7 @@ export async function incrementThoughtViews(thoughtId) {
       
       // Race the actual request against the timeout
       const result = await Promise.race([
-        supabase.rpc('increment_shower_thought_views', { thought_id: safeThoughtId }),
+        supabase.rpc('increment_shower_thought_views', { thought_id: thoughtId }),
         timeoutPromise
       ]);
       
@@ -735,15 +731,13 @@ export async function toggleThoughtLike(thoughtId, userId = null) {
   debug.log('Toggling like with params:', { thoughtId, userId });
   
   try {
-    const safeThoughtId = safeUUID(thoughtId);
-    const safeUserId = safeUUID(userId);
-    if (!safeThoughtId) {
+    if (!thoughtId) {
       debug.warn('Invalid thought ID for like toggle:', thoughtId);
       debug.groupEnd();
       return 0;
     }
 
-    if (isSupabaseConfigured() && safeUserId && supabase) {
+    if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Toggling like in Supabase database');
       
       // Create a promise that rejects after a timeout
@@ -754,8 +748,8 @@ export async function toggleThoughtLike(thoughtId, userId = null) {
       // Race the actual request against the timeout
       const result = await Promise.race([
         supabase.rpc('toggle_shower_thought_like', { 
-          thought_id: safeThoughtId, 
-          user_id: safeUserId 
+          thought_id: thoughtId, 
+          user_id: userId 
         }),
         timeoutPromise
       ]);
@@ -789,8 +783,7 @@ export async function incrementThoughtShares(thoughtId) {
   debug.log('Incrementing shares for thought:', thoughtId);
   
   try {
-    const safeThoughtId = safeUUID(thoughtId);
-    if (!safeThoughtId) {
+    if (!thoughtId) {
       debug.warn('Invalid thought ID for share increment:', thoughtId);
       debug.groupEnd();
       return 1;
@@ -806,7 +799,7 @@ export async function incrementThoughtShares(thoughtId) {
       
       // Race the actual request against the timeout
       const result = await Promise.race([
-        supabase.rpc('increment_shower_thought_shares', { thought_id: safeThoughtId }),
+        supabase.rpc('increment_shower_thought_shares', { thought_id: thoughtId }),
         timeoutPromise
       ]);
       
@@ -841,29 +834,29 @@ export async function reorderFavorites(userId, orderedIds) {
   try {
     if (isSupabaseConfigured() && userId && supabase) {
       debug.log('Reordering favorites in Supabase database');
-      // Validate all IDs before processing
-      const safeIds = orderedIds.map(id => safeUUID(id)).filter(Boolean);
+      // Filter out any null/undefined IDs
+      const validIds = orderedIds.filter(Boolean);
       
-      if (safeIds.length !== orderedIds.length) {
-        debug.warn('Some invalid UUIDs found in reorder operation');
+      if (validIds.length !== orderedIds.length) {
+        debug.warn('Some invalid IDs found in reorder operation');
       }
 
-      debug.log(`Processing ${safeIds.length} valid IDs for reordering`);
+      debug.log(`Processing ${validIds.length} valid IDs for reordering`);
       
       // Update the order in the database with timeout
-      for (let i = 0; i < safeIds.length; i++) {
-        debug.log(`Setting order_index=${i} for thought_id=${safeIds[i]}`);
+      for (let i = 0; i < validIds.length; i++) {
+        debug.log(`Setting order_index=${i} for thought_id=${validIds[i]}`);
         
         // Use the mapped table name with timeout
         const queryPromise = table('user_favorites')
           .update({ order_index: i })
           .eq('user_id', userId)
-          .eq('thought_id', safeIds[i]);
+          .eq('thought_id', validIds[i]);
         
         await executeWithTimeout(
           queryPromise,
           15000,
-          `Reorder operation timed out for thought_id=${safeIds[i]}`
+          `Reorder operation timed out for thought_id=${validIds[i]}`
         );
       }
       
