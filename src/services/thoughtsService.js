@@ -81,6 +81,17 @@ function convertLocalThoughtToDb(thought) {
 }
 
 /**
+ * Helper function to convert timestamp strings back to Date objects
+ */
+function convertTimestampToDate(thought) {
+  return {
+    ...thought,
+    timestamp: thought.timestamp ? new Date(thought.timestamp) : new Date(),
+    favoritedAt: thought.favoritedAt ? new Date(thought.favoritedAt) : undefined
+  };
+}
+
+/**
  * Request deduplication cache
  */
 const requestCache = new Map();
@@ -687,7 +698,8 @@ export async function syncLocalDataToDatabase(userId) {
 function getLocalThoughts() {
   try {
     const stored = localStorage.getItem(LOCAL_THOUGHTS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const thoughts = stored ? JSON.parse(stored) : [];
+    return thoughts.map(convertTimestampToDate);
   } catch (error) {
     console.error('Error reading local thoughts:', error);
     return [];
@@ -697,7 +709,8 @@ function getLocalThoughts() {
 function getLocalFavorites() {
   try {
     const stored = localStorage.getItem(LOCAL_FAVORITES_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const favorites = stored ? JSON.parse(stored) : [];
+    return favorites.map(convertTimestampToDate);
   } catch (error) {
     console.error('Error reading local favorites:', error);
     return [];

@@ -5,11 +5,21 @@ const STORAGE_KEY = 'showergpt-saved-thoughts';
 const HISTORY_KEY = 'showergpt-history';
 const FAVORITES_KEY = 'showergpt-favorites';
 
+// Helper function to convert timestamp strings back to Date objects
+function convertTimestampToDate(thought: any): ShowerThought {
+  return {
+    ...thought,
+    timestamp: thought.timestamp ? new Date(thought.timestamp) : new Date(),
+    favoritedAt: thought.favoritedAt ? new Date(thought.favoritedAt) : undefined
+  };
+}
+
 // Legacy functions for backward compatibility
 export function getSavedThoughts(): ShowerThought[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
+    const thoughts = saved ? JSON.parse(saved) : [];
+    return thoughts.map(convertTimestampToDate);
   } catch (error) {
     console.error('Error loading saved thoughts:', error);
     return [];
@@ -45,7 +55,8 @@ export function isThoughtSaved(thoughtId: string): boolean {
 export function getThoughtHistory(): ShowerThought[] {
   try {
     const history = localStorage.getItem(HISTORY_KEY);
-    return history ? JSON.parse(history) : [];
+    const thoughts = history ? JSON.parse(history) : [];
+    return thoughts.map(convertTimestampToDate);
   } catch (error) {
     console.error('Error loading thought history:', error);
     return [];
@@ -74,7 +85,8 @@ export function clearHistory(): void {
 export function getFavorites(): ShowerThought[] {
   try {
     const favorites = localStorage.getItem(FAVORITES_KEY);
-    return favorites ? JSON.parse(favorites) : [];
+    const thoughts = favorites ? JSON.parse(favorites) : [];
+    return thoughts.map(convertTimestampToDate);
   } catch (error) {
     console.error('Error loading favorites:', error);
     return [];
