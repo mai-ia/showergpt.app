@@ -94,12 +94,17 @@ function AppContent() {
     document.title = '🚿 ShowerGPT - Whimsical Shower Thoughts';
   }, []);
 
-  // Load user's thoughts when they sign in
+  // Load user's thoughts when they sign in with proper error handling
   useEffect(() => {
     if (user) {
-      measureComponentRender('load-user-thoughts', () => {
-        loadUserThoughts();
-        handleDataSync();
+      measureComponentRender('load-user-thoughts', async () => {
+        try {
+          await loadUserThoughts();
+          await handleDataSync();
+        } catch (error) {
+          console.error('Error in user data loading:', error);
+          showError('Data loading failed', 'Unable to load your thoughts. Please refresh the page.');
+        }
       });
     }
   }, [user]);
@@ -116,6 +121,7 @@ function AppContent() {
       await refreshThoughts();
     } catch (error) {
       console.error('Error loading user thoughts:', error);
+      throw error; // Re-throw to be caught by the effect
     }
   };
 
@@ -177,7 +183,7 @@ function AppContent() {
         newThought.category = request.category;
       }
       
-      // Save thought to database/local storage
+      // Save thought to database/local storage with proper error handling
       try {
         const savedThought = await saveThought(newThought, user?.id);
         setThoughts(prev => [savedThought, ...prev]);
@@ -243,7 +249,7 @@ function AppContent() {
         );
       }
       
-      // Save variation to database/local storage
+      // Save variation to database/local storage with proper error handling
       try {
         const savedVariation = await saveThought(variation, user?.id);
         setThoughts(prev => [savedVariation, ...prev]);
@@ -272,14 +278,16 @@ function AppContent() {
     try {
       if (isFavorite) {
         await addToFavorites(thought, user?.id);
+        success('Added to favorites!', 'This thought has been saved to your favorites.');
       } else {
         await removeFromFavorites(thought.id, user?.id);
+        success('Removed from favorites!', 'This thought has been removed from your favorites.');
       }
       setSavedThoughtsRefresh(prev => prev + 1);
       refreshThoughts(); // Refresh cache
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      showError('Favorite failed', 'Unable to update favorite status.');
+      showError('Favorite failed', error.message || 'Unable to update favorite status.');
     }
   };
 

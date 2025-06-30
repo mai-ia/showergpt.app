@@ -10,6 +10,17 @@ const LOCAL_THOUGHTS_KEY = 'showergpt-user-thoughts';
 const LOCAL_FAVORITES_KEY = 'showergpt-user-favorites';
 
 /**
+ * Generate a proper UUID v4
+ */
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/**
  * Normalize ID to ensure it's a proper string format
  */
 function normalizeId(id) {
@@ -31,11 +42,67 @@ function isValidUUID(id) {
  */
 function safeUUID(id) {
   const normalizedId = normalizeId(id);
-  if (!normalizedId || !isValidUUID(normalizedId)) {
-    console.warn('Invalid UUID format:', id);
-    return null;
+  if (!normalizedId) return null;
+  
+  // If it's already a valid UUID, return it
+  if (isValidUUID(normalizedId)) {
+    return normalizedId;
   }
-  return normalizedId;
+  
+  // If it's a timestamp-based ID from local storage, generate a new UUID
+  if (normalizedId.match(/^\d+/)) {
+    console.warn('Converting timestamp-based ID to UUID:', normalizedId);
+    return generateUUID();
+  }
+  
+  console.warn('Invalid ID format, generating new UUID:', normalizedId);
+  return generateUUID();
+}
+
+/**
+ * Convert local storage thought to database format
+ */
+function convertLocalThoughtToDb(thought) {
+  return {
+    id: generateUUID(), // Always generate new UUID for database
+    content: thought.content,
+    topic: thought.topic || null,
+    mood: thought.mood,
+    category: thought.category || null,
+    tags: thought.tags || [],
+    source: thought.source || 'template',
+    tokens_used: thought.tokensUsed || null,
+    cost: thought.cost || null,
+    views_count: thought.views || 0,
+    likes_count: thought.likes || 0,
+    shares_count: thought.shares || 0,
+    created_at: thought.timestamp ? new Date(thought.timestamp).toISOString() : new Date().toISOString()
+  };
+}
+
+/**
+ * Request deduplication cache
+ */
+const requestCache = new Map();
+
+/**
+ * Deduplicated request wrapper
+ */
+async function deduplicatedRequest(key, requestFn) {
+  if (requestCache.has(key)) {
+    return requestCache.get(key);
+  }
+  
+  const promise = requestFn();
+  requestCache.set(key, promise);
+  
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    // Clean up cache after a short delay to prevent memory leaks
+    setTimeout(() => requestCache.delete(key), 1000);
+  }
 }
 
 /**
@@ -45,21 +112,8 @@ export async function saveThought(thought, userId = null) {
   try {
     // If Supabase is configured and user is authenticated, save to database
     if (isSupabaseConfigured() && userId && supabase) {
-      const thoughtData = {
-        content: thought.content,
-        topic: thought.topic || null,
-        mood: thought.mood,
-        category: thought.category || null,
-        tags: thought.tags || [],
-        source: thought.source || 'template',
-        tokens_used: thought.tokensUsed || null,
-        cost: thought.cost || null,
-        views_count: 0,
-        likes_count: 0,
-        shares_count: 0,
-        user_id: userId,
-        created_at: new Date().toISOString()
-      };
+      const thoughtData = convertLocalThoughtToDb(thought);
+      thoughtData.user_id = userId;
 
       const { data, error } = await supabase
         .from('shower_thoughts')
@@ -107,32 +161,36 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
   try {
     // If Supabase is configured and user is authenticated, get from database
     if (isSupabaseConfigured() && userId && supabase) {
-      const { data, error } = await supabase
-        .from('shower_thoughts')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+      const cacheKey = `user-thoughts-${userId}-${limit}-${offset}`;
+      
+      return await deduplicatedRequest(cacheKey, async () => {
+        const { data, error } = await supabase
+          .from('shower_thoughts')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      return (data || []).map(thought => ({
-        id: thought.id,
-        content: thought.content,
-        topic: thought.topic,
-        mood: thought.mood,
-        category: thought.category,
-        tags: thought.tags || [],
-        source: thought.source || 'template',
-        tokensUsed: thought.tokens_used,
-        cost: thought.cost,
-        views: thought.views_count || 0,
-        likes: thought.likes_count || 0,
-        shares: thought.shares_count || 0,
-        timestamp: new Date(thought.created_at),
-        isFavorite: false, // Will be set by favorites check
-        variations: []
-      }));
+        return (data || []).map(thought => ({
+          id: thought.id,
+          content: thought.content,
+          topic: thought.topic,
+          mood: thought.mood,
+          category: thought.category,
+          tags: thought.tags || [],
+          source: thought.source || 'template',
+          tokensUsed: thought.tokens_used,
+          cost: thought.cost,
+          views: thought.views_count || 0,
+          likes: thought.likes_count || 0,
+          shares: thought.shares_count || 0,
+          timestamp: new Date(thought.created_at),
+          isFavorite: false, // Will be set by favorites check
+          variations: []
+        }));
+      });
     } else {
       // Fallback to local storage
       const localThoughts = getLocalThoughts();
@@ -150,7 +208,7 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
 export async function deleteThought(thoughtId, userId = null) {
   try {
     const safeThoughtId = safeUUID(thoughtId);
-    if (!safeThoughtId) {
+    if (!safeThoughtId && isSupabaseConfigured() && userId) {
       throw new Error('Invalid thought ID format');
     }
 
@@ -182,16 +240,22 @@ export async function deleteThought(thoughtId, userId = null) {
  */
 export async function addToFavorites(thought, userId = null) {
   try {
-    const safeThoughtId = safeUUID(thought.id);
-    if (!safeThoughtId) {
-      throw new Error('Invalid thought ID format');
-    }
-
     // If Supabase is configured and user is authenticated, save to database
     if (isSupabaseConfigured() && userId && supabase) {
+      // For database operations, ensure we have a valid UUID
+      let thoughtId = thought.id;
+      
+      // If the thought doesn't have a valid UUID, it might be from local storage
+      if (!isValidUUID(thoughtId)) {
+        console.warn('Thought has invalid UUID, this might be a local storage thought:', thoughtId);
+        // For local storage thoughts being synced, we need to find the corresponding database thought
+        // or create a new one. For now, we'll skip invalid UUIDs.
+        throw new Error('Cannot add local storage thought to favorites. Please sync your data first.');
+      }
+
       const favoriteData = {
         user_id: userId,
-        thought_id: safeThoughtId,
+        thought_id: thoughtId,
         content: thought.content,
         topic: thought.topic || null,
         mood: thought.mood,
@@ -208,7 +272,7 @@ export async function addToFavorites(thought, userId = null) {
       if (error) {
         // Handle duplicate favorites gracefully
         if (error.code === '23505') {
-          return thought; // Already favorited
+          return { ...thought, isFavorite: true }; // Already favorited
         }
         throw error;
       }
@@ -236,7 +300,7 @@ export async function addToFavorites(thought, userId = null) {
     }
   } catch (error) {
     console.error('Error adding to favorites:', error);
-    throw new Error('Failed to add to favorites. Please try again.');
+    throw error; // Re-throw to preserve original error message
   }
 }
 
@@ -245,13 +309,14 @@ export async function addToFavorites(thought, userId = null) {
  */
 export async function removeFromFavorites(thoughtId, userId = null) {
   try {
-    const safeThoughtId = safeUUID(thoughtId);
-    if (!safeThoughtId) {
-      throw new Error('Invalid thought ID format');
-    }
-
     // If Supabase is configured and user is authenticated, remove from database
     if (isSupabaseConfigured() && userId && supabase) {
+      const safeThoughtId = safeUUID(thoughtId);
+      if (!safeThoughtId) {
+        console.warn('Invalid thought ID for favorite removal:', thoughtId);
+        return true; // Silently succeed for invalid IDs
+      }
+
       const { error } = await supabase
         .from('user_favorites')
         .delete()
@@ -280,25 +345,29 @@ export async function getUserFavorites(userId = null, limit = 50) {
   try {
     // If Supabase is configured and user is authenticated, get from database
     if (isSupabaseConfigured() && userId && supabase) {
-      const { data, error } = await supabase
-        .from('user_favorites')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      const cacheKey = `user-favorites-${userId}-${limit}`;
+      
+      return await deduplicatedRequest(cacheKey, async () => {
+        const { data, error } = await supabase
+          .from('user_favorites')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(limit);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      return (data || []).map(favorite => ({
-        id: favorite.thought_id,
-        content: favorite.content,
-        topic: favorite.topic,
-        mood: favorite.mood,
-        source: favorite.source || 'template',
-        timestamp: new Date(favorite.created_at),
-        isFavorite: true,
-        variations: []
-      }));
+        return (data || []).map(favorite => ({
+          id: favorite.thought_id,
+          content: favorite.content,
+          topic: favorite.topic,
+          mood: favorite.mood,
+          source: favorite.source || 'template',
+          timestamp: new Date(favorite.created_at),
+          isFavorite: true,
+          variations: []
+        }));
+      });
     } else {
       // Fallback to local storage
       return getLocalFavorites().slice(0, limit);
@@ -314,22 +383,26 @@ export async function getUserFavorites(userId = null, limit = 50) {
  */
 export async function isThoughtFavorited(thoughtId, userId = null) {
   try {
-    const safeThoughtId = safeUUID(thoughtId);
-    if (!safeThoughtId) {
-      return false;
-    }
-
     // If Supabase is configured and user is authenticated, check database
     if (isSupabaseConfigured() && userId && supabase) {
-      const { data, error } = await supabase
-        .from('user_favorites')
-        .select('thought_id')
-        .eq('thought_id', safeThoughtId)
-        .eq('user_id', userId)
-        .limit(1);
+      const safeThoughtId = safeUUID(thoughtId);
+      if (!safeThoughtId) {
+        return false;
+      }
 
-      if (error) throw error;
-      return data && data.length > 0;
+      const cacheKey = `thought-favorited-${userId}-${safeThoughtId}`;
+      
+      return await deduplicatedRequest(cacheKey, async () => {
+        const { data, error } = await supabase
+          .from('user_favorites')
+          .select('thought_id')
+          .eq('thought_id', safeThoughtId)
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (error) throw error;
+        return data && data.length > 0;
+      });
     } else {
       // Fallback to local storage
       const localFavorites = getLocalFavorites();
