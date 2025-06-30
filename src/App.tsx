@@ -347,20 +347,22 @@ function AppContent() {
   // Show password reset form if this is a password reset session
   if (isPasswordReset) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
-        <Card variant="elevated" className="max-w-md w-full">
-          <Suspense fallback={<LoadingFallback message="Loading password reset..." />}>
-            <LazyResetPasswordForm onSuccess={handlePasswordResetSuccess} />
-          </Suspense>
-        </Card>
-      </div>
-     
-     {/* Payment Prompt Modal */}
-     <PaymentPromptModal 
-       isOpen={showPaymentPromptModal}
-       onClose={() => setShowPaymentPromptModal(false)}
-       resetTime={resetTime}
-     />
+      <>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+          <Card variant="elevated" className="max-w-md w-full">
+            <Suspense fallback={<LoadingFallback message="Loading password reset..." />}>
+              <LazyResetPasswordForm onSuccess={handlePasswordResetSuccess} />
+            </Suspense>
+          </Card>
+        </div>
+       
+        {/* Payment Prompt Modal */}
+        <PaymentPromptModal 
+          isOpen={showPaymentPromptModal}
+          onClose={() => setShowPaymentPromptModal(false)}
+          resetTime={resetTime}
+        />
+      </>
     );
   }
 
