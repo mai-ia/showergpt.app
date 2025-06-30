@@ -197,11 +197,11 @@ export function usePresence(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Presence connection timed out after 180 seconds');
+        debug.warn('Presence connection timed out after 300 seconds');
         setIsLoading(false);
         setError(new Error('Presence connection timed out'));
       }
-    }, 180000);
+    }, 300000);
 
     // Update user presence
     const updatePresence = async () => {
@@ -220,14 +220,19 @@ export function usePresence(userId?: string) {
         });
         
         // Race the actual request against the timeout
-        await Promise.race([
-          supabase.rpc('update_user_presence', {
-            presence_status: 'online',
-            page_location: window.location.pathname,
-            user_display_name: displayName
-          }),
-          timeoutPromise
-        ]);
+        try {
+          await Promise.race([
+            supabase.rpc('update_user_presence', {
+              presence_status: 'online',
+              page_location: window.location.pathname,
+              user_display_name: displayName
+            }),
+            timeoutPromise
+          ]);
+        } catch (error) {
+          debug.warn('Error updating presence, will continue without presence update:', error);
+          // Don't rethrow - allow the app to continue even if presence update fails
+        }
       } catch (error) {
         debug.error('Error updating presence:', error);
       }
