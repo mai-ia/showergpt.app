@@ -15,6 +15,7 @@ import { useCache } from './hooks/useCache';
 // UI Components
 import { ToastProvider, useToast } from './components/ui/Toast';
 import SkipLink from './components/accessibility/SkipLink';
+import LegalDisclaimer from './components/LegalDisclaimer';
 
 // Enhanced Components
 import EnhancedInputSection from './components/enhanced/EnhancedInputSection';
@@ -72,7 +73,6 @@ function AppContent() {
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
-  const [showDatabaseStatus, setShowDatabaseStatus] = useState(false);
 
   // Cached user thoughts
   const { data: cachedThoughts, refresh: refreshThoughts } = useCache(
@@ -695,27 +695,8 @@ function AppContent() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 border-t border-blue-100 dark:border-slate-700 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Droplets className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-              <span className="text-slate-700 dark:text-slate-300 font-medium">
-                Crafted with 💧 for moments of contemplation
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              {isOpenAIConfigured() 
-                ? 'AI-powered thoughts with rate limiting for optimal creativity and cost control.'
-                : 'Rate limited to 5 thoughts per minute for optimal shower-like pacing.'
-              }
-              <br />
-              Because the best ideas need time to marinate.
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* Legal Disclaimer */}
+      <LegalDisclaimer />
 
       {/* Modals */}
       {showSaved && (
