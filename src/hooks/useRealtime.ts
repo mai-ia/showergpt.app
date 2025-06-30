@@ -362,17 +362,17 @@ export function useLiveNotifications(userId?: string) {
     // Set a timeout to prevent hanging in "loading" state
     timeoutRef.current = setTimeout(() => {
       if (isLoading) {
-        debug.warn('Notifications loading timed out after 8 seconds');
+        debug.warn('Notifications loading timed out after 18 seconds');
         setIsLoading(false);
-        setError(new Error('Notifications loading timed out'));
+        setError(new Error('Notifications loading timed out after 18 seconds'));
       }
-    }, 8000);
+    }, 18000);
 
     const loadNotifications = async () => {
       try {
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Notifications fetch timed out after 5 seconds')), 5000);
+          setTimeout(() => reject(new Error('Notifications fetch timed out after 15 seconds')), 15000);
         });
         
         // Race the actual request against the timeout

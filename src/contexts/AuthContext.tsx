@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile loading timed out after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Profile loading timed out after 30 seconds')), 30000);
       });
       
       // Race the actual profile loading against the timeout
@@ -96,9 +96,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Create a promise that rejects after a timeout
         const timeoutPromise = new Promise<{data: {session: null}}>((_,reject) => {
           setTimeout(() => {
-            debug.warn('Session retrieval timed out after 15 seconds');
+            debug.warn('Session retrieval timed out after 30 seconds');
             reject(new Error('Session retrieval timed out'));
-          }, 15000);
+          }, 30000);
         });
         
         // Race the actual session retrieval against the timeout
@@ -135,10 +135,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Set a timeout to ensure loading state is reset even if everything fails
     const loadingTimeout = setTimeout(() => {
       if (loading) {
-        debug.warn('Auth initialization timed out after 20 seconds, resetting loading state');
+        debug.warn('Auth initialization timed out after 35 seconds, resetting loading state');
         setLoading(false);
       }
-    }, 20000);
+    }, 35000);
 
     getInitialSession();
 

@@ -49,8 +49,8 @@ export async function getUserProfile(userId: string) {
     
     const { data, error } = await executeWithTimeout(
       queryPromise,
-      15000,
-      `Profile fetch for user ${userId} timed out after 5 seconds`
+      30000,
+      `Profile fetch for user ${userId} timed out after 30 seconds`
     );
     
     if (error && error.code !== 'PGRST116') {
