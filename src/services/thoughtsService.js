@@ -657,7 +657,7 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
         debug.log(`Favorite status: ${isFavorited ? 'favorited' : 'not favorited'}`);
         debug.groupEnd();
         return isFavorited;
-      }, 10000);
+      }, 20000);
     } else {
       // Fallback to local storage
       debug.log('Checking favorite status in local storage');
