@@ -190,8 +190,8 @@ export async function saveThought(thought, userId = null) {
       
       const { data, error } = await executeWithTimeout(
         queryPromise,
-        20000,
-        `Thought save timed out after 10 seconds for thought ${thought.id}`
+        25000,
+        `Thought save timed out after 25 seconds for thought ${thought.id}`
       );
 
       if (error) {
@@ -268,8 +268,8 @@ export async function getUserThoughts(userId = null, limit = 50, offset = 0) {
         
         const { data, error } = await executeWithTimeout(
           queryPromise,
-          20000,
-          `Thoughts fetch timed out after 10 seconds for user ${userId}`
+          25000,
+          `Thoughts fetch timed out after 25 seconds for user ${userId}`
         );
 
         if (error) {
@@ -353,8 +353,8 @@ export async function deleteThought(thoughtId, userId = null) {
       
       const { error } = await executeWithTimeout(
         queryPromise,
-        15000,
-        `Thought delete timed out after 8 seconds for thought ${thoughtId}`
+        20000,
+        `Thought delete timed out after 20 seconds for thought ${thoughtId}`
       );
 
       if (error) {
@@ -432,8 +432,8 @@ export async function addToFavorites(thought, userId = null) {
       
       const { data, error } = await executeWithTimeout(
         queryPromise,
-        15000,
-        `Favorite add timed out after 8 seconds for thought ${thoughtId}`
+        20000,
+        `Favorite add timed out after 20 seconds for thought ${thoughtId}`
       );
 
       if (error) {
@@ -516,8 +516,8 @@ export async function removeFromFavorites(thoughtId, userId = null) {
       
       const { error } = await executeWithTimeout(
         queryPromise,
-        15000,
-        `Favorite removal timed out after 8 seconds for thought ${thoughtId}`
+        20000,
+        `Favorite removal timed out after 20 seconds for thought ${thoughtId}`
       );
 
       if (error) {
@@ -572,8 +572,8 @@ export async function getUserFavorites(userId = null, limit = 50) {
         
         const { data, error } = await executeWithTimeout(
           queryPromise,
-          15000,
-          `Favorites fetch timed out after 8 seconds for user ${userId}`
+          20000,
+          `Favorites fetch timed out after 20 seconds for user ${userId}`
         );
 
         if (error) {
@@ -647,8 +647,8 @@ export async function isThoughtFavorited(thoughtId, userId = null) {
         
         const { data, error } = await executeWithTimeout(
           queryPromise,
-          10000,
-          `Favorite check timed out after 5 seconds for thought ${thoughtId}`
+          15000,
+          `Favorite check timed out after 15 seconds for thought ${thoughtId}`
         );
 
         if (error && error.code !== 'PGRST116') {
@@ -697,7 +697,7 @@ export async function incrementThoughtViews(thoughtId) {
       
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('View increment timed out after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('View increment timed out after 15 seconds')), 15000);
       });
       
       // Race the actual request against the timeout
@@ -748,7 +748,7 @@ export async function toggleThoughtLike(thoughtId, userId = null) {
       
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Like toggle timed out after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Like toggle timed out after 20 seconds')), 20000);
       });
       
       // Race the actual request against the timeout
@@ -801,7 +801,7 @@ export async function incrementThoughtShares(thoughtId) {
       
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Share increment timed out after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Share increment timed out after 15 seconds')), 15000);
       });
       
       // Race the actual request against the timeout
@@ -862,7 +862,7 @@ export async function reorderFavorites(userId, orderedIds) {
         
         await executeWithTimeout(
           queryPromise,
-          10000,
+          15000,
           `Reorder operation timed out for thought_id=${safeIds[i]}`
         );
       }
@@ -904,15 +904,15 @@ export async function getUserStats(userId = null) {
           table('shower_thoughts')
             .select('id, mood, source, tokens_used, cost, category')
             .eq('user_id', userId),
-          15000,
-          `Thoughts stats fetch timed out after 8 seconds for user ${userId}`
+          20000,
+          `Thoughts stats fetch timed out after 20 seconds for user ${userId}`
         ),
         executeWithTimeout(
           table('user_favorites')
             .select('thought_id')
             .eq('user_id', userId),
-          15000,
-          `Favorites stats fetch timed out after 8 seconds for user ${userId}`
+          20000,
+          `Favorites stats fetch timed out after 20 seconds for user ${userId}`
         )
       ]);
 
