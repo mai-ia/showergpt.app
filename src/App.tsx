@@ -16,6 +16,7 @@ import { useCache } from './hooks/useCache';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import SkipLink from './components/accessibility/SkipLink';
 import LegalDisclaimer from './components/LegalDisclaimer';
+import PaymentPromptModal from './components/PaymentPromptModal';
 
 // Enhanced Components
 import EnhancedInputSection from './components/enhanced/EnhancedInputSection';
@@ -70,6 +71,8 @@ function AppContent() {
   const [showInfiniteScroll, setShowInfiniteScroll] = useState(false);
   const [showLiveFeed, setShowLiveFeed] = useState(false);
   const [showCollaboration, setShowCollaboration] = useState(false);
+  const [showPaymentPromptModal, setShowPaymentPromptModal] = useState(false);
+  const [resetTime, setResetTime] = useState<string>('');
   const [savedThoughtsRefresh, setSavedThoughtsRefresh] = useState(0);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [isPasswordReset, setIsPasswordReset] = useState(false);
@@ -153,6 +156,8 @@ function AppContent() {
         const errorMsg = `Rate limit exceeded. Try again after ${resetTime}.`;
         setError(errorMsg);
         showError('Rate limit exceeded', errorMsg);
+       setResetTime(resetTime);
+       setShowPaymentPromptModal(true);
         return;
       }
     }
@@ -226,6 +231,8 @@ function AppContent() {
         const errorMsg = `Rate limit exceeded. Try again after ${resetTime}.`;
         setError(errorMsg);
         showError('Rate limit exceeded', errorMsg);
+       setResetTime(resetTime);
+       setShowPaymentPromptModal(true);
         return;
       }
     }
@@ -347,6 +354,13 @@ function AppContent() {
           </Suspense>
         </Card>
       </div>
+     
+     {/* Payment Prompt Modal */}
+     <PaymentPromptModal 
+       isOpen={showPaymentPromptModal}
+       onClose={() => setShowPaymentPromptModal(false)}
+       resetTime={resetTime}
+     />
     );
   }
 

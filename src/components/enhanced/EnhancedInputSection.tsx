@@ -28,7 +28,7 @@ const EnhancedInputSection = memo(function EnhancedInputSection({
   const [topic, setTopic] = useState('');
   const [mood, setMood] = useState<'philosophical' | 'humorous' | 'scientific'>('philosophical');
   const [category, setCategory] = useState('');
-  const [useAI, setUseAI] = useState(isOpenAIConfigured());
+  const [useAI, setUseAI] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const debouncedGenerate = useDebouncedCallback((request: GenerationRequest) => {

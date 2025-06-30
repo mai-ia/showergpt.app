@@ -1,7 +1,7 @@
 import { RateLimit } from '../types';
 
 const RATE_LIMIT_KEY = 'showergpt-rate-limit';
-const MAX_REQUESTS = 5;
+const MAX_REQUESTS = 10;
 const WINDOW_MINUTES = 1;
 
 export function checkRateLimit(): { allowed: boolean; resetTime?: number } {
