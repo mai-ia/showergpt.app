@@ -36,6 +36,8 @@ import Tooltip from './components/ui/Tooltip';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import DatabaseDiagnostic from './components/DatabaseDiagnostic';
 import EnvVariableChecker from './components/EnvVariableChecker';
+import SchemaChecker from './components/SchemaChecker';
+import MinimalDatabaseTest from './components/MinimalDatabaseTest';
 
 // Lazy loaded components
 import {
@@ -542,11 +544,17 @@ function AppContent() {
             <EnvironmentWarning />
             <SupabaseWarning />
             
+            {/* Minimal Database Test Component */}
+            <MinimalDatabaseTest />
+            
             {/* Database Diagnostic Component */}
             <DatabaseDiagnostic />
             
             {/* Environment Variable Checker */}
             <EnvVariableChecker />
+            
+            {/* Schema Checker Component */}
+            <SchemaChecker />
 
             {/* Live Features */}
             {showLiveFeed && (
@@ -816,3 +824,5 @@ function App() {
 }
 
 export default App;
+
+export default App
