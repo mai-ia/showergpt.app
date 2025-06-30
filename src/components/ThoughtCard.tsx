@@ -202,15 +202,19 @@ const ThoughtCard = memo(function ThoughtCard({
         </div>
 
         <div className="flex items-start justify-between mb-6 mt-8">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{moodConfig.icon}</span>
-            <span className={`px-4 py-2 rounded-full text-sm font-bold ${moodConfig.color} shadow-lg`}>
-              {thought.mood}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm bg-slate-50 dark:bg-slate-700 px-3 py-2 rounded-full">
-            <Clock className="w-4 h-4" />
-            {formatTime(thought.timestamp)}
+          <div className="flex flex-col">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{moodConfig.icon}</span>
+              <span className={`px-4 py-2 rounded-full text-sm font-bold ${moodConfig.color} shadow-lg`}>
+                {thought.mood}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mt-1 ml-10">
+              <Clock className="w-3 h-3" />
+              <time dateTime={thought.timestamp.toISOString()}>
+                {formatTime(thought.timestamp)}
+              </time>
+            </div>
           </div>
         </div>
 
@@ -319,14 +323,13 @@ const ThoughtCard = memo(function ThoughtCard({
             <button
               onClick={handleFavorite}
               disabled={loading}
-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex items-center justify-center p-2 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
                 isFavorite
                   ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
                   : 'bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-300 hover:from-red-50 hover:to-red-100 dark:hover:from-red-900/20 dark:hover:to-red-800/20 hover:text-red-600 dark:hover:text-red-400'
               }`}
             >
               <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''} ${loading ? 'animate-pulse' : ''}`} />
-              <span className="text-sm">{loading ? 'Saving...' : isFavorite ? 'Saved' : 'Save'}</span>
             </button>
 
             <button
