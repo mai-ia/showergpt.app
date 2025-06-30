@@ -92,7 +92,7 @@ export default function LiveThoughtsFeed({ onThoughtUpdate }: LiveThoughtsFeedPr
     try {
       // Create a promise that rejects after a timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Public thoughts fetch timed out after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Public thoughts fetch timed out after 120 seconds')), 120000);
       });
       
       // Race the actual request against the timeout
