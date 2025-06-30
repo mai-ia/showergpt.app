@@ -702,7 +702,7 @@ export async function incrementThoughtViews(thoughtId) {
       
       // Race the actual request against the timeout
       const result = await Promise.race([
-        supabase.rpc('increment_thought_views', { thought_id: safeThoughtId }),
+        supabase.rpc('increment_shower_thought_views', { thought_id: safeThoughtId }),
         timeoutPromise
       ]);
       
@@ -752,7 +752,7 @@ export async function toggleThoughtLike(thoughtId, userId = null) {
       
       // Race the actual request against the timeout
       const result = await Promise.race([
-        supabase.rpc('toggle_thought_like', { 
+        supabase.rpc('toggle_shower_thought_like', { 
           thought_id: safeThoughtId, 
           user_id: userId 
         }),
@@ -805,7 +805,7 @@ export async function incrementThoughtShares(thoughtId) {
       
       // Race the actual request against the timeout
       const result = await Promise.race([
-        supabase.rpc('increment_thought_shares', { thought_id: safeThoughtId }),
+        supabase.rpc('increment_shower_thought_shares', { thought_id: safeThoughtId }),
         timeoutPromise
       ]);
       
