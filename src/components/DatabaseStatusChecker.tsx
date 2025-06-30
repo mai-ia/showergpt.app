@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { tableExists, getAvailableTables } from '../services/databaseMappingService';
 import Card from './ui/Card';
 import Button from './ui/Button';
+import { debug } from '../utils/debugHelpers';
 
 export default function DatabaseStatusChecker() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
@@ -17,6 +18,8 @@ export default function DatabaseStatusChecker() {
     setError(null);
     
     try {
+      debug.log('DatabaseStatusChecker: Checking database connection');
+      
       if (!isSupabaseConfigured() || !supabase) {
         throw new Error('Supabase is not configured. Please check your environment variables.');
       }
@@ -36,23 +39,32 @@ export default function DatabaseStatusChecker() {
       clearTimeout(timeoutId);
       
       if (error) {
+        debug.error('DatabaseStatusChecker: Connection test failed:', error);
         throw error;
       }
       
+      debug.log('DatabaseStatusChecker: Connection test successful');
       setIsConnected(true);
       
       // Get available tables
+      debug.log('DatabaseStatusChecker: Getting available tables');
       const tables = await getAvailableTables();
+      debug.log(`DatabaseStatusChecker: Found ${tables.length} tables`);
       setAvailableTables(tables);
       
       // Check if shower_thoughts table exists
+      debug.log('DatabaseStatusChecker: Checking if shower_thoughts table exists');
       const hasShowerThoughts = await tableExists('shower_thoughts');
       
       if (!hasShowerThoughts) {
+        debug.warn('DatabaseStatusChecker: shower_thoughts table is missing');
         setError('The shower_thoughts table is missing. Database schema may need to be updated.');
+      } else {
+        debug.log('DatabaseStatusChecker: shower_thoughts table exists');
       }
       
     } catch (err: any) {
+      debug.error('DatabaseStatusChecker: Error checking connection:', err);
       setIsConnected(false);
       
       if (err.name === 'AbortError') {
@@ -169,6 +181,31 @@ export default function DatabaseStatusChecker() {
                       </span>
                     ))}
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Database Info */}
+        {isConnected && (
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-blue-700 dark:text-blue-300 mb-1">
+                  Database Information
+                </h3>
+                <p className="text-blue-600 dark:text-blue-400 text-sm">
+                  The application uses a table mapping service to ensure compatibility between code and database.
+                </p>
+                <div className="mt-3">
+                  <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-1">Key Mappings:</h4>
+                  <ul className="list-disc list-inside text-sm text-blue-600 dark:text-blue-400">
+                    <li>App code using "thoughts" maps to "shower_thoughts" table</li>
+                    <li>App code using "profiles" maps to "user_profiles" table</li>
+                    <li>App code using "favorites" maps to "user_favorites" table</li>
+                  </ul>
                 </div>
               </div>
             </div>

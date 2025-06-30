@@ -54,11 +54,13 @@ export function isThoughtSaved(thoughtId: string): boolean {
 // History management
 export function getThoughtHistory(): ShowerThought[] {
   try {
+    debug.log('Getting thought history from local storage');
     const history = localStorage.getItem(HISTORY_KEY);
     const thoughts = history ? JSON.parse(history) : [];
+    debug.log(`Found ${thoughts.length} thoughts in history`);
     return thoughts.map(convertTimestampToDate);
   } catch (error) {
-    console.error('Error loading thought history:', error);
+    debug.error('Error loading thought history:', error);
     return [];
   }
 }
@@ -89,20 +91,6 @@ export function clearHistory(): void {
     localStorage.removeItem(HISTORY_KEY);
   } catch (error) {
     debug.error('Error clearing history:', error);
-  }
-}
-
-// Favorites management
-export function getFavorites(): ShowerThought[] {
-  try {
-    debug.log('Getting favorites from local storage');
-    const favorites = localStorage.getItem(FAVORITES_KEY);
-    const thoughts = favorites ? JSON.parse(favorites) : [];
-    debug.log(`Found ${thoughts.length} favorites in local storage`);
-    return thoughts.map(convertTimestampToDate);
-  } catch (error) {
-    debug.error('Error loading favorites:', error);
-    return [];
   }
 }
 
